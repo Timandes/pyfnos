@@ -1,7 +1,6 @@
-import websocket
+import asyncio
 import json
 import time
-import threading
 import uuid
 import base64
 import random
@@ -11,6 +10,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_v1_5
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
+import websockets
 
 class FnosClient:
     def __init__(self):
@@ -19,15 +19,16 @@ class FnosClient:
         self.host_name = None
         self.session_id = None
         self.connected = False
-        self.heartbeat_thread = None
+        self.heartbeat_task = None
         self.stop_heartbeat = False
         self.login_response = None
-        self.login_event = threading.Event()
+        self.login_future = None
         self.decrypted_secret = None
         self.aes_key = None
         self.iv = None
         self.pending_requests = {}  # 用于存储待处理的请求
         self.on_message_callback = None  # 外部消息回调函数
+        self.message_queue = asyncio.Queue()
         
     def _generate_reqid(self):
         """生成唯一的reqid"""
@@ -122,40 +123,59 @@ class FnosClient:
             print(f"解密登录secret失败: {e}")
             return None
     
-    def connect(self):
+    async def connect(self):
         """连接到WebSocket服务器"""
         try:
             print("正在连接到WebSocket服务器...")
             # 创建WebSocket连接
-            self.ws = websocket.WebSocketApp(
-                "ws://nas-9.timandes.net:5666/websocket?type=main",
-                on_message=self._on_message,
-                on_error=self._on_error,
-                on_close=self._on_close,
-                on_open=self._on_open
-            )
+            self.ws = await websockets.connect("ws://nas-9.timandes.net:5666/websocket?type=main")
+            print("websockets.connect returned")
+
+            print("Creating async message handler...")
+            # 启动消息处理任务
+            self.message_task = asyncio.create_task(self._message_handler())
+            print("Async message handler task created")
             
-            # 启动WebSocket连接（设置超时）
-            self.ws.run_forever()
+            print("Sending first request...")
+            # 发送第一个请求获取RSA公钥
+            await self._send_first_request()
+            print("First request sent")
+            
+            # 注意：self.connected 将在收到公钥响应后设置为True
+            # 在 _process_message 方法中处理
             
         except Exception as e:
             print(f"连接失败: {e}")
             self.connected = False
-        
-    def _send_message(self, message):
+    
+    async def _send_message(self, message):
         """发送消息到服务器"""
-        if self.ws and self.connected:
-            self.ws.send(json.dumps(message))
+        if self.ws:  # 只需要检查WebSocket连接存在，不需要等待连接完全建立
+            message_json = json.dumps(message)
+            print(f"Sending message: {message_json}")
+            await self.ws.send(message_json)
             
-    def _on_message(self, ws, message):
+    async def _message_handler(self):
         """处理接收到的消息"""
-        # 首先调用外部回调函数（如果存在）
-        if self.on_message_callback:
-            try:
-                self.on_message_callback(message)
-            except Exception as e:
-                print(f"外部消息回调函数出错: {e}")
-        
+        try:
+            async for message in self.ws:
+                # 首先调用外部回调函数（如果存在）
+                if self.on_message_callback:
+                    try:
+                        self.on_message_callback(message)
+                    except Exception as e:
+                        print(f"外部消息回调函数出错: {e}")
+                
+                await self._process_message(message)
+        except websockets.exceptions.ConnectionClosed:
+            print("WebSocket连接已关闭")
+            self.connected = False
+            self.stop_heartbeat = True
+        except Exception as e:
+            print(f"消息处理错误: {e}")
+            
+    async def _process_message(self, message):
+        """处理接收到的消息"""
         try:
             data = json.loads(message)
             if "pub" in data and "reqid" in data:
@@ -164,15 +184,18 @@ class FnosClient:
                 self.session_id = data["si"]
                 print(f"已获取RSA公钥: {data['pub']}")
                 print(f"会话ID: {data['si']}")
+                # 设置连接状态为已连接
+                self.connected = True
+                print("WebSocket连接已建立")
                 # 发送第二个请求
-                self._send_second_request()
+                await self._send_second_request()
             elif "data" in data and "hostName" in data["data"]:
                 # 这是第二个请求的响应（获取主机名）
                 self.host_name = data["data"]["hostName"]
                 print(f"主机名: {self.host_name}")
                 print(f"Trim版本: {data['data']['trimVersion']}")
                 # 启动心跳机制
-                self._start_heartbeat()
+                await self._start_heartbeat()
             elif "res" in data and data["res"] == "pong":
                 # 这是心跳响应
                 print("收到心跳响应: pong")
@@ -183,12 +206,14 @@ class FnosClient:
                 if "secret" in data:
                     self.decrypted_secret = self._decrypt_login_secret(data["secret"])
                     print(f"服务器返回的secret: {self.decrypted_secret}")
-                self.login_event.set()
+                if self.login_future and not self.login_future.done():
+                    self.login_future.set_result(self.login_response)
                 print("登录成功")
             elif "result" in data and data["result"] == "fail":
                 # 登录失败
                 self.login_response = data
-                self.login_event.set()
+                if self.login_future and not self.login_future.done():
+                    self.login_future.set_result(self.login_response)
                 print(f"登录失败: {data.get('msg', '未知错误')}")
             else:
                 # 检查是否有待处理的请求在等待这个响应
@@ -196,69 +221,53 @@ class FnosClient:
                 # 在实际应用中，可能需要更复杂的匹配机制
                 for req_id, req_data in list(self.pending_requests.items()):
                     req_data['response'] = message
-                    req_data['event'].set()
+                    if not req_data['future'].done():
+                        req_data['future'].set_result(message)
                     break
                 print(f"收到未知消息: {message}")
         except json.JSONDecodeError:
             # 如果不是JSON格式，检查是否有待处理的请求在等待这个响应
             for req_id, req_data in list(self.pending_requests.items()):
                 req_data['response'] = message
-                req_data['event'].set()
+                if not req_data['future'].done():
+                    req_data['future'].set_result(message)
                 break
             print(f"无法解析消息: {message}")
         
-    def _on_error(self, ws, error):
-        """处理错误"""
-        print(f"WebSocket错误: {error}")
-        
-    def _on_close(self, ws, close_status_code, close_msg):
-        """处理连接关闭"""
-        print("WebSocket连接已关闭")
-        self.connected = False
-        self.stop_heartbeat = True
-        
-    def _on_open(self, ws):
-        """处理连接打开"""
-        print("WebSocket连接已建立")
-        self.connected = True
-        # 发送第一个请求获取RSA公钥
-        self._send_first_request()
-        
-    def _send_first_request(self):
+    async def _send_first_request(self):
         """发送第一个请求获取RSA公钥"""
         reqid = self._generate_reqid()
         message = {
             "reqid": reqid,
             "req": "util.crypto.getRSAPub"
         }
-        self._send_message(message)
+        await self._send_message(message)
         
-    def _send_second_request(self):
+    async def _send_second_request(self):
         """发送第二个请求获取主机名"""
         reqid = self._generate_reqid()
         message = {
             "reqid": reqid,
             "req": "appcgi.sysinfo.getHostName"
         }
-        self._send_message(message)
+        await self._send_message(message)
         
-    def _start_heartbeat(self):
+    async def _start_heartbeat(self):
         """启动心跳机制"""
-        def heartbeat_worker():
+        async def heartbeat_worker():
             while not self.stop_heartbeat:
-                time.sleep(30)  # 每30秒发送一次
+                await asyncio.sleep(30)  # 每30秒发送一次
                 if self.connected:
                     message = {
                         "req": "ping"
                     }
-                    self._send_message(message)
+                    await self._send_message(message)
                     print("已发送心跳请求")
         
-        # 启动心跳线程
-        self.heartbeat_thread = threading.Thread(target=heartbeat_worker, daemon=True)
-        self.heartbeat_thread.start()
+        # 启动心跳任务
+        self.heartbeat_task = asyncio.create_task(heartbeat_worker())
     
-    def login(self, username, password):
+    async def login(self, username, password):
         """用户登录方法"""
         if not self.connected:
             raise Exception("未连接到服务器")
@@ -271,13 +280,14 @@ class FnosClient:
         print(f"Sending login request: {encrypted_data}")
         
         # 发送登录请求并等待响应
-        self.login_event.clear()
-        self._send_message(encrypted_data)
+        self.login_future = asyncio.Future()
+        await self._send_message(encrypted_data)
         
         # 等待登录响应（最多等待10秒）
-        if self.login_event.wait(10):
+        try:
+            await asyncio.wait_for(self.login_future, timeout=10)
             return self.login_response
-        else:
+        except asyncio.TimeoutError:
             raise Exception("登录超时")
     
     def get_decrypted_secret(self):
@@ -302,7 +312,7 @@ class FnosClient:
         # 返回base64编码的结果
         return base64.b64encode(hmac_result).decode('utf-8')
     
-    def request(self, e):
+    async def request(self, e):
         """发送请求"""
         if not self.connected:
             raise Exception("未连接到服务器")
@@ -318,10 +328,10 @@ class FnosClient:
         print(f"Sending msg to channel: {request_data}")
         
         # 发送数据
-        self.ws.send(request_data)
+        await self.ws.send(request_data)
         print(f"已发送请求: {request_data}")
     
-    def request_payload(self, req: str, payload: dict):
+    async def request_payload(self, req: str, payload: dict):
         """以payload为主体，添加req和reqid后发送请求"""
         # 将req以key=req放进去
         payload_data = payload.copy()  # 创建副本避免修改原始数据
@@ -332,4 +342,14 @@ class FnosClient:
         
         # JSON序列化之后访问request()方法完成发送
         json_data = json.dumps(payload_data, separators=(',', ':'))
-        self.request(json_data)
+        await self.request(json_data)
+    
+    async def close(self):
+        """关闭WebSocket连接"""
+        if self.ws:
+            await self.ws.close()
+            self.connected = False
+        if self.heartbeat_task:
+            self.heartbeat_task.cancel()
+        if hasattr(self, 'message_task'):
+            self.message_task.cancel()

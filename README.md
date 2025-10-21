@@ -7,34 +7,38 @@
 ## 上手
 
 ```python
+import asyncio
 
 def on_message_handler(message):
     """消息回调处理函数"""
     print(f"收到消息: {message}")
 
 
-def main():
+async def main():
     client = FnosClient()
     
     # 设置消息回调
     client.on_message(on_message_handler)
     
-    # 启动另一个线程保持连接
-    connect_thread = threading.Thread(target=client.connect)
-    connect_thread.daemon = True
-    connect_thread.start()
+    # 连接到服务器
+    await client.connect()
 
     # 等待连接建立
-    time.sleep(3)
+    await asyncio.sleep(3)
 
     # 登录
-    result = client.login("admin", "123")
+    result = await client.login("admin", "123")
     print("登录结果:", result)
 
     # 发送请求
-    client.request_payload("user.info", {})
+    await client.request_payload("user.info", {})
     print("已发送请求，等待响应...")
     # 等待一段时间以接收响应
-    time.sleep(5)
+    await asyncio.sleep(5)
+    
+    # 关闭连接
+    await client.close()
 
+# 运行异步主函数
+asyncio.run(main())
 ```
