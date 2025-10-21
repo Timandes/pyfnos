@@ -189,7 +189,7 @@ class FnosClient:
                 print("WebSocket连接已建立")
                 # 发送第二个请求
                 await self._send_second_request()
-            elif "data" in data and "hostName" in data["data"]:
+            elif "data" in data and "hostName" in data:
                 # 这是第二个请求的响应（获取主机名）
                 self.host_name = data["data"]["hostName"]
                 print(f"主机名: {self.host_name}")
@@ -216,15 +216,29 @@ class FnosClient:
                     self.login_future.set_result(self.login_response)
                 print(f"登录失败: {data.get('msg', '未知错误')}")
             else:
-                # 检查是否有待处理的请求在等待这个响应
-                # 这里我们简单地将所有其他消息视为请求响应
-                # 在实际应用中，可能需要更复杂的匹配机制
-                for req_id, req_data in list(self.pending_requests.items()):
-                    req_data['response'] = message
-                    if not req_data['future'].done():
-                        req_data['future'].set_result(message)
-                    break
-                print(f"收到未知消息: {message}")
+                # 检查消息中是否包含reqid，这可能是待处理请求的响应
+                if "reqid" in data:
+                    reqid = data["reqid"]
+                    if reqid in self.pending_requests:
+                        req_data = self.pending_requests[reqid]
+                        # 从待处理请求中移除
+                        del self.pending_requests[reqid]
+                        # 设置响应结果
+                        if not req_data['future'].done():
+                            req_data['future'].set_result(data)
+                        print(f"收到待处理请求的响应: {reqid}")
+                    else:
+                        print(f"收到未知请求ID的响应: {reqid}")
+                else:
+                    # 检查是否有待处理的请求在等待这个响应
+                    # 这里我们简单地将所有其他消息视为请求响应
+                    # 在实际应用中，可能需要更复杂的匹配机制
+                    for req_id, req_data in list(self.pending_requests.items()):
+                        req_data['response'] = message
+                        if not req_data['future'].done():
+                            req_data['future'].set_result(message)
+                        break
+                    print(f"收到未知消息: {message}")
         except json.JSONDecodeError:
             # 如果不是JSON格式，检查是否有待处理的请求在等待这个响应
             for req_id, req_data in list(self.pending_requests.items()):
@@ -338,11 +352,43 @@ class FnosClient:
         payload_data["req"] = req
         
         # 生成请求ID以key="reqid"放进去
-        payload_data["reqid"] = self._generate_reqid()
+        reqid = self._generate_reqid()
+        payload_data["reqid"] = reqid
         
         # JSON序列化之后访问request()方法完成发送
         json_data = json.dumps(payload_data, separators=(',', ':'))
         await self.request(json_data)
+        
+        return reqid
+
+    async def request_payload_with_response(self, req: str, payload: dict):
+        """以payload为主体，添加req和reqid后发送请求，并返回响应"""
+        # 创建一个Future对象来等待响应
+        future = asyncio.Future()
+        
+        # 将请求添加到待处理请求列表
+        reqid = self._generate_reqid()
+        self.pending_requests[reqid] = {
+            'future': future,
+            'req': req,
+            'payload': payload
+        }
+        
+        # 构造请求数据
+        payload_data = payload.copy()  # 创建副本避免修改原始数据
+        payload_data["req"] = req
+        payload_data["reqid"] = reqid
+        
+        # JSON序列化之后访问request()方法完成发送
+        json_data = json.dumps(payload_data, separators=(',', ':'))
+        await self.request(json_data)
+        
+        # 等待响应（最多等待10秒）
+        try:
+            response = await asyncio.wait_for(future, timeout=10)
+            return response
+        except asyncio.TimeoutError:
+            raise Exception(f"请求 {req} 超时")
     
     async def close(self):
         """关闭WebSocket连接"""
