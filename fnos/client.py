@@ -320,3 +320,16 @@ class FnosClient:
         # 发送数据
         self.ws.send(request_data)
         print(f"已发送请求: {request_data}")
+    
+    def request_payload(self, req: str, payload: dict):
+        """以payload为主体，添加req和reqid后发送请求"""
+        # 将req以key=req放进去
+        payload_data = payload.copy()  # 创建副本避免修改原始数据
+        payload_data["req"] = req
+        
+        # 生成请求ID以key="reqid"放进去
+        payload_data["reqid"] = self._generate_reqid()
+        
+        # JSON序列化之后访问request()方法完成发送
+        json_data = json.dumps(payload_data, separators=(',', ':'))
+        self.request(json_data)

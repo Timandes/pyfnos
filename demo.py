@@ -43,7 +43,7 @@ def main():
                 
                 # 测试request方法
                 try:
-                    client.request("{\"reqid\":\"68f6d99868f6d996000000020004\",\"req\":\"user.info\"}")
+                    client.request_payload("user.info", {})
                     print("已发送请求，等待响应...")
                     # 等待一段时间以接收响应
                     time.sleep(5)
