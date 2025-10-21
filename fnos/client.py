@@ -361,7 +361,7 @@ class FnosClient:
         
         return reqid
 
-    async def request_payload_with_response(self, req: str, payload: dict):
+    async def request_payload_with_response(self, req: str, payload: dict, timeout: float = 10.0):
         """以payload为主体，添加req和reqid后发送请求，并返回响应"""
         # 创建一个Future对象来等待响应
         future = asyncio.Future()
@@ -383,9 +383,9 @@ class FnosClient:
         json_data = json.dumps(payload_data, separators=(',', ':'))
         await self.request(json_data)
         
-        # 等待响应（最多等待10秒）
+        # 等待响应（最多等待指定的超时时间）
         try:
-            response = await asyncio.wait_for(future, timeout=10)
+            response = await asyncio.wait_for(future, timeout=timeout)
             return response
         except asyncio.TimeoutError:
             raise Exception(f"请求 {req} 超时")
