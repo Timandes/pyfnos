@@ -1,8 +1,16 @@
 # pyfnos
 
+[![PyPI](https://img.shields.io/pypi/v/fnos)](https://pypi.org/project/fnos/)
+[![GitHub](https://img.shields.io/github/license/Timandes/pyfnos)](https://github.com/Timandes/pyfnos)
+
 飞牛fnOS的Python SDK。
 
 *注意：这个SDK非官方提供。*
+
+## 项目信息
+
+- **源代码仓库**: [https://github.com/Timandes/pyfnos](https://github.com/Timandes/pyfnos)
+- **问题追踪**: [GitHub Issues](https://github.com/Timandes/pyfnos/issues)
 
 ## 上手
 
