@@ -42,3 +42,23 @@ async def main():
 # 运行异步主函数
 asyncio.run(main())
 ```
+
+## 参考
+
+| 类名 | 方法名 | 简介 |
+| ---- | ---- | ---- |
+| FnosClient | `__init__` | 初始化客户端 |
+| FnosClient | `connect` | 连接到WebSocket服务器 |
+| FnosClient | `login` | 用户登录方法 |
+| FnosClient | `get_decrypted_secret` | 获取解密后的secret |
+| FnosClient | `on_message` | 设置消息回调函数 |
+| FnosClient | `request` | 发送请求 |
+| FnosClient | `request_payload` | 以payload为主体发送请求 |
+| FnosClient | `request_payload_with_response` | 以payload为主体发送请求并返回响应 |
+| FnosClient | `close` | 关闭WebSocket连接 |
+| Store | `__init__` | 初始化Store类 |
+| Store | `general` | 请求存储通用信息 |
+| ResourceMonitor | `__init__` | 初始化ResourceMonitor类 |
+| ResourceMonitor | `cpu` | 请求CPU资源监控信息 |
+| ResourceMonitor | `gpu` | 请求GPU资源监控信息 |
+| ResourceMonitor | `memory` | 请求内存资源监控信息 |
