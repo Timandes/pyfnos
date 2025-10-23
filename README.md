@@ -80,6 +80,8 @@ if __name__ == "__main__":
 | ResourceMonitor | `cpu` | 请求CPU资源监控信息 |
 | ResourceMonitor | `gpu` | 请求GPU资源监控信息 |
 | ResourceMonitor | `memory` | 请求内存资源监控信息 |
+| SAC | `__init__` | 初始化SAC类 |
+| SAC | `ups_status` | 请求UPS状态信息 |
 
 ## 命令行参数
 
