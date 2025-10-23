@@ -82,6 +82,12 @@ if __name__ == "__main__":
 | ResourceMonitor | `memory` | 请求内存资源监控信息 |
 | SAC | `__init__` | 初始化SAC类 |
 | SAC | `ups_status` | 请求UPS状态信息 |
+| SystemInfo | `__init__` | 初始化SystemInfo类 |
+| SystemInfo | `get_host_name` | 请求主机名信息 |
+| SystemInfo | `get_trim_version` | 请求Trim版本信息 |
+| SystemInfo | `get_machine_id` | 请求机器ID信息 |
+| SystemInfo | `get_hardware_info` | 请求硬件信息 |
+| SystemInfo | `get_uptime` | 请求系统运行时间信息 |
 
 ## 命令行参数
 

@@ -20,7 +20,8 @@ from .client import FnosClient
 from .store import Store
 from .resource_monitor import ResourceMonitor
 from .sac import SAC
+from .system_info import SystemInfo
 
 __version__ = "0.1.0"
 
-__all__ = ["FnosClient", "Store", "ResourceMonitor", "SAC"]
+__all__ = ["FnosClient", "Store", "ResourceMonitor", "SAC", "SystemInfo"]
