@@ -12,6 +12,7 @@ async def main():
     parser = argparse.ArgumentParser(description='Fnos资源监控示例')
     parser.add_argument('--user', type=str, required=True, help='用户名')
     parser.add_argument('--password', type=str, required=True, help='密码')
+    parser.add_argument('-e', '--endpoint', type=str, default='your-custom-endpoint.com:5666', help='服务器地址 (默认: your-custom-endpoint.com:5666)')
     
     args = parser.parse_args()
     
@@ -20,8 +21,8 @@ async def main():
     # 设置消息回调
     client.on_message(on_message_handler)
     
-    # 连接到服务器
-    await client.connect()
+    # 连接到服务器（必须指定endpoint）
+    await client.connect(args.endpoint)
     
     # 等待连接建立
     await asyncio.sleep(3)

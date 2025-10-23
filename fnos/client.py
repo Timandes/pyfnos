@@ -123,12 +123,12 @@ class FnosClient:
             print(f"解密登录secret失败: {e}")
             return None
     
-    async def connect(self):
+    async def connect(self, endpoint):
         """连接到WebSocket服务器"""
         try:
             print("正在连接到WebSocket服务器...")
             # 创建WebSocket连接
-            self.ws = await websockets.connect("ws://nas-9.timandes.net:5666/websocket?type=main")
+            self.ws = await websockets.connect(f"ws://{endpoint}/websocket?type=main")
             print("websockets.connect returned")
 
             print("Creating async message handler...")

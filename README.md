@@ -16,6 +16,7 @@
 
 ```python
 import asyncio
+import argparse
 
 def on_message_handler(message):
     """消息回调处理函数"""
@@ -23,19 +24,27 @@ def on_message_handler(message):
 
 
 async def main():
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description='Fnos客户端')
+    parser.add_argument('--user', type=str, required=True, help='用户名')
+    parser.add_argument('--password', type=str, required=True, help='密码')
+    parser.add_argument('-e', '--endpoint', type=str, default='your-custom-endpoint.com:5666', help='服务器地址 (默认: your-custom-endpoint.com:5666)')
+    
+    args = parser.parse_args()
+    
     client = FnosClient()
     
     # 设置消息回调
     client.on_message(on_message_handler)
     
-    # 连接到服务器
-    await client.connect()
+    # 连接到服务器（必须指定endpoint）
+    await client.connect(args.endpoint)
 
     # 等待连接建立
     await asyncio.sleep(3)
 
     # 登录
-    result = await client.login("admin", "123")
+    result = await client.login(args.user, args.password)
     print("登录结果:", result)
 
     # 发送请求
@@ -48,7 +57,8 @@ async def main():
     await client.close()
 
 # 运行异步主函数
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 ## 参考
@@ -56,7 +66,7 @@ asyncio.run(main())
 | 类名 | 方法名 | 简介 |
 | ---- | ---- | ---- |
 | FnosClient | `__init__` | 初始化客户端 |
-| FnosClient | `connect` | 连接到WebSocket服务器 |
+| FnosClient | `connect` | 连接到WebSocket服务器（必填参数：endpoint） |
 | FnosClient | `login` | 用户登录方法 |
 | FnosClient | `get_decrypted_secret` | 获取解密后的secret |
 | FnosClient | `on_message` | 设置消息回调函数 |
@@ -70,3 +80,11 @@ asyncio.run(main())
 | ResourceMonitor | `cpu` | 请求CPU资源监控信息 |
 | ResourceMonitor | `gpu` | 请求GPU资源监控信息 |
 | ResourceMonitor | `memory` | 请求内存资源监控信息 |
+
+## 命令行参数
+
+示例程序支持以下命令行参数：
+
+- `--user`: 用户名（必填）
+- `--password`: 密码（必填）
+- `-e, --endpoint`: 服务器地址（可选，默认为 your-custom-endpoint.com:5666）
