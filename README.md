@@ -53,6 +53,14 @@ async def main():
     # 等待一段时间以接收响应
     await asyncio.sleep(5)
     
+    # 演示重连功能
+    await client.close()  # 先关闭连接
+    print("连接已关闭，尝试重连...")
+    await client.connect(args.endpoint)  # 重新连接
+    await asyncio.sleep(3)  # 等待连接建立
+    result = await client.login(args.user, args.password)  # 重新登录
+    print("重连登录结果:", result)
+    
     # 关闭连接
     await client.close()
 
@@ -73,6 +81,7 @@ if __name__ == "__main__":
 | FnosClient | `request` | 发送请求 |
 | FnosClient | `request_payload` | 以payload为主体发送请求 |
 | FnosClient | `request_payload_with_response` | 以payload为主体发送请求并返回响应 |
+| FnosClient | `reconnect` | 重新连接到服务器 |
 | FnosClient | `close` | 关闭WebSocket连接 |
 | Store | `__init__` | 初始化Store类 |
 | Store | `general` | 请求存储通用信息 |
