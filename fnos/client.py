@@ -26,6 +26,8 @@ from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
 import websockets
 
+from .exceptions import NotConnectedError
+
 class FnosClient:
     def __init__(self):
         self.ws = None
@@ -304,7 +306,7 @@ class FnosClient:
     async def login(self, username, password):
         """用户登录方法"""
         if not self.connected:
-            raise Exception("未连接到服务器")
+            raise NotConnectedError("未连接到服务器")
         
         if not self.public_key or not self.session_id:
             raise Exception("未获取到公钥或会话ID")
@@ -353,7 +355,7 @@ class FnosClient:
     async def request(self, e):
         """发送请求"""
         if not self.connected:
-            raise Exception("未连接到服务器")
+            raise NotConnectedError("未连接到服务器")
         
         if not self.decrypted_secret:
             raise Exception("未获取到secret")
@@ -371,6 +373,9 @@ class FnosClient:
     
     async def request_payload(self, req: str, payload: dict):
         """以payload为主体，添加req和reqid后发送请求"""
+        if not self.connected:
+            raise NotConnectedError("未连接到服务器")
+            
         # 将req以key=req放进去
         payload_data = payload.copy()  # 创建副本避免修改原始数据
         payload_data["req"] = req
@@ -387,6 +392,9 @@ class FnosClient:
 
     async def request_payload_with_response(self, req: str, payload: dict, timeout: float = 10.0):
         """以payload为主体，添加req和reqid后发送请求，并返回响应"""
+        if not self.connected:
+            raise NotConnectedError("未连接到服务器")
+            
         # 创建一个Future对象来等待响应
         future = asyncio.Future()
         
