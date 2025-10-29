@@ -43,6 +43,10 @@ class FnosClient:
         self.pending_requests = {}  # 用于存储待处理的请求
         self.on_message_callback = None  # 外部消息回调函数
         self.message_queue = asyncio.Queue()
+        # 保存连接和登录信息用于重连
+        self.endpoint = None
+        self.username = None
+        self.password = None
         
     def _generate_reqid(self):
         """生成唯一的reqid"""
@@ -141,6 +145,8 @@ class FnosClient:
         """连接到WebSocket服务器"""
         try:
             print("正在连接到WebSocket服务器...")
+            # 保存endpoint用于重连
+            self.endpoint = endpoint
             # 创建WebSocket连接
             self.ws = await websockets.connect(f"ws://{endpoint}/websocket?type=main")
             print("websockets.connect returned")
@@ -303,6 +309,10 @@ class FnosClient:
         if not self.public_key or not self.session_id:
             raise Exception("未获取到公钥或会话ID")
         
+        # 保存用户名和密码用于重连
+        self.username = username
+        self.password = password
+        
         # 加密登录数据
         encrypted_data = self._encrypt_login_data(username, password)
         print(f"Sending login request: {encrypted_data}")
@@ -403,6 +413,40 @@ class FnosClient:
             return response
         except asyncio.TimeoutError:
             raise Exception(f"请求 {req} 超时")
+    
+    async def reconnect(self):
+        """重连方法：在connected==False的前提下，先用存的endpoint做connect()，成功后用存的用户名和密码做login()"""
+        if self.connected:
+            print("已经连接，无需重连")
+            return True
+            
+        if not self.endpoint:
+            raise Exception("没有保存的endpoint用于重连")
+            
+        if not self.username or not self.password:
+            raise Exception("没有保存的用户名和密码用于重连")
+        
+        print("开始重连...")
+        
+        # 先连接
+        await self.connect(self.endpoint)
+        
+        # 等待连接建立
+        for _ in range(20):  # 最多等待10秒（每次0.5秒）
+            if self.connected:
+                break
+            await asyncio.sleep(0.5)
+        else:
+            raise Exception("重连失败：连接建立超时")
+        
+        # 再登录
+        login_result = await self.login(self.username, self.password)
+        
+        if login_result and login_result.get("result") == "succ":
+            print("重连成功")
+            return True
+        else:
+            raise Exception("重连失败：登录失败")
     
     async def close(self):
         """关闭WebSocket连接"""
