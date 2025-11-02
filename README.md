@@ -97,6 +97,11 @@ if __name__ == "__main__":
 | SystemInfo | `get_machine_id` | 请求机器ID信息 |
 | SystemInfo | `get_hardware_info` | 请求硬件信息 |
 | SystemInfo | `get_uptime` | 请求系统运行时间信息 |
+| User | `__init__` | 初始化User类 |
+| User | `getInfo` | 获取用户信息 |
+| User | `listUserGroups` | 请求用户和组列表信息 |
+| User | `groupUsers` | 请求用户分组信息 |
+| User | `isAdmin` | 检查当前用户是否为管理员 |
 
 ## 命令行参数
 
