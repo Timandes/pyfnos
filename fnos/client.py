@@ -314,7 +314,7 @@ class FnosClient:
         # 启动心跳任务
         self.heartbeat_task = asyncio.create_task(heartbeat_worker())
     
-    async def login(self, username, password):
+    async def login(self, username, password, timeout=10.0):
         """用户登录方法"""
         if not self.connected:
             raise NotConnectedError("未连接到服务器")
@@ -334,9 +334,9 @@ class FnosClient:
         self.login_future = asyncio.Future()
         await self._send_message(encrypted_data)
         
-        # 等待登录响应（最多等待10秒）
+        # 等待登录响应（最多等待指定的超时时间）
         try:
-            await asyncio.wait_for(self.login_future, timeout=10)
+            await asyncio.wait_for(self.login_future, timeout=timeout)
             return self.login_response
         except asyncio.TimeoutError:
             raise Exception("登录超时")
@@ -433,7 +433,7 @@ class FnosClient:
         except asyncio.TimeoutError:
             raise Exception(f"请求 {req} 超时")
     
-    async def reconnect(self, timeout=3):
+    async def reconnect(self, connect_timeout=3, login_timeout=10.0):
         """重连方法：在connected==False的前提下，先用存的endpoint做connect()，成功后用存的用户名和密码做login()"""
         if self.connected:
             print("已经连接，无需重连")
@@ -448,10 +448,10 @@ class FnosClient:
         print("开始重连...")
         
         # 先连接（connect方法现在会等待连接完成）
-        await self.connect(self.endpoint, timeout=timeout)
+        await self.connect(self.endpoint, timeout=connect_timeout)
         
         # 再登录
-        login_result = await self.login(self.username, self.password)
+        login_result = await self.login(self.username, self.password, timeout=login_timeout)
         
         if login_result and login_result.get("result") == "succ":
             print("重连成功")
