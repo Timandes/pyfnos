@@ -53,13 +53,16 @@ async def main():
     # 等待一段时间以接收响应
     await asyncio.sleep(5)
     
-    # 演示重连功能
+    # 演示重连功能（手动方式）
     await client.close()  # 先关闭连接
     print("连接已关闭，尝试重连...")
     await client.connect(args.endpoint)  # 重新连接
     await asyncio.sleep(3)  # 等待连接建立
     result = await client.login(args.user, args.password)  # 重新登录
     print("重连登录结果:", result)
+    
+    # 或者使用内置的重连方法（需要先确保连接已断开）
+    # await client.reconnect()  # 使用内置重连方法
     
     # 关闭连接
     await client.close()
