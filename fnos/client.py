@@ -143,7 +143,7 @@ class FnosClient:
             print(f"解密登录secret失败: {e}")
             return None
     
-    async def connect(self, endpoint, timeout=3):
+    async def connect(self, endpoint, timeout: float = 3.0):
         """连接到WebSocket服务器"""
         try:
             print("正在连接到WebSocket服务器...")
@@ -314,7 +314,7 @@ class FnosClient:
         # 启动心跳任务
         self.heartbeat_task = asyncio.create_task(heartbeat_worker())
     
-    async def login(self, username, password, timeout=10.0):
+    async def login(self, username, password, timeout: float = 10.0):
         """用户登录方法"""
         if not self.connected:
             raise NotConnectedError("未连接到服务器")
@@ -433,7 +433,7 @@ class FnosClient:
         except asyncio.TimeoutError:
             raise Exception(f"请求 {req} 超时")
     
-    async def reconnect(self, connect_timeout=3, login_timeout=10.0):
+    async def reconnect(self, connect_timeout: float = 3.0, login_timeout: float = 10.0):
         """重连方法：在connected==False的前提下，先用存的endpoint做connect()，成功后用存的用户名和密码做login()"""
         if self.connected:
             print("已经连接，无需重连")
