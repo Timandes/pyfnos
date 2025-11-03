@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fnos"
-version = "0.4.0"
+version = "0.5.0"
 description = "飞牛fnOS的Python SDK。"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -20,3 +20,8 @@ Repository = "https://github.com/Timandes/pyfnos.git"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["fnos*"]
+
+[dependency-groups]
+dev = [
+    "twine>=6.2.0",
+]
