@@ -41,9 +41,6 @@ async def main():
         print("正在连接到服务器...")
         await client.connect(args.endpoint)
         
-        # 等待连接建立
-        await asyncio.sleep(3)
-        
         if client.connected:
             # 登录
             print("正在登录...")

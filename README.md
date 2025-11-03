@@ -40,9 +40,6 @@ async def main():
     # 连接到服务器（必须指定endpoint）
     await client.connect(args.endpoint)
 
-    # 等待连接建立
-    await asyncio.sleep(3)
-
     # 登录
     result = await client.login(args.user, args.password)
     print("登录结果:", result)
@@ -56,8 +53,7 @@ async def main():
     # 演示重连功能（手动方式）
     await client.close()  # 先关闭连接
     print("连接已关闭，尝试重连...")
-    await client.connect(args.endpoint)  # 重新连接
-    await asyncio.sleep(3)  # 等待连接建立
+    await client.connect(args.endpoint)  # 重新连接（现在会等待连接完成）
     result = await client.login(args.user, args.password)  # 重新登录
     print("重连登录结果:", result)
     

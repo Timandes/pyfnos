@@ -38,9 +38,6 @@ async def main():
     # 连接到服务器（必须指定endpoint）
     await client.connect(args.endpoint)
     
-    # 等待连接建立
-    await asyncio.sleep(3)
-    
     if client.connected:
         print("连接成功，尝试登录...")
         try:

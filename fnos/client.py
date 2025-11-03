@@ -143,7 +143,7 @@ class FnosClient:
             print(f"解密登录secret失败: {e}")
             return None
     
-    async def connect(self, endpoint):
+    async def connect(self, endpoint, timeout=3):
         """连接到WebSocket服务器"""
         try:
             print("正在连接到WebSocket服务器...")
@@ -158,17 +158,25 @@ class FnosClient:
             self.message_task = asyncio.create_task(self._message_handler())
             print("Async message handler task created")
             
+            # 创建一个Future对象来等待连接完成
+            self.connect_future = asyncio.Future()
+            
             print("Sending first request...")
             # 发送第一个请求获取RSA公钥
             await self._send_first_request()
             print("First request sent")
             
-            # 注意：self.connected 将在收到公钥响应后设置为True
-            # 在 _process_message 方法中处理
+            # 等待连接完成（最多等待指定的超时时间）
+            try:
+                await asyncio.wait_for(self.connect_future, timeout=timeout)
+                return True
+            except asyncio.TimeoutError:
+                raise Exception("连接超时")
             
         except Exception as e:
             print(f"连接失败: {e}")
             self.connected = False
+            raise
     
     async def _send_message(self, message):
         """发送消息到服务器"""
@@ -209,6 +217,9 @@ class FnosClient:
                 # 设置连接状态为已连接
                 self.connected = True
                 print("WebSocket连接已建立")
+                # 设置连接future完成
+                if hasattr(self, 'connect_future') and not self.connect_future.done():
+                    self.connect_future.set_result(True)
                 # 发送第二个请求
                 await self._send_second_request()
             elif "data" in data and "hostName" in data:
@@ -422,7 +433,7 @@ class FnosClient:
         except asyncio.TimeoutError:
             raise Exception(f"请求 {req} 超时")
     
-    async def reconnect(self):
+    async def reconnect(self, timeout=3):
         """重连方法：在connected==False的前提下，先用存的endpoint做connect()，成功后用存的用户名和密码做login()"""
         if self.connected:
             print("已经连接，无需重连")
@@ -436,16 +447,8 @@ class FnosClient:
         
         print("开始重连...")
         
-        # 先连接
-        await self.connect(self.endpoint)
-        
-        # 等待连接建立
-        for _ in range(20):  # 最多等待10秒（每次0.5秒）
-            if self.connected:
-                break
-            await asyncio.sleep(0.5)
-        else:
-            raise Exception("重连失败：连接建立超时")
+        # 先连接（connect方法现在会等待连接完成）
+        await self.connect(self.endpoint, timeout=timeout)
         
         # 再登录
         login_result = await self.login(self.username, self.password)

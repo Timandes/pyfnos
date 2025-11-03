@@ -39,16 +39,7 @@ async def main():
         # 连接到服务器
         print("正在连接到服务器...")
         await client.connect(args.endpoint)
-        
-        # 等待连接建立
-        for i in range(20):  # 最多等待10秒
-            if client.connected:
-                print("连接已建立")
-                break
-            await asyncio.sleep(0.5)
-        else:
-            print("连接超时")
-            return
+        print("连接已建立")
             
         # 登录
         print("正在登录...")
