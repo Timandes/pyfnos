@@ -113,3 +113,29 @@ if __name__ == "__main__":
 - `--user`: 用户名（必填）
 - `--password`: 密码（必填）
 - `-e, --endpoint`: 服务器地址（可选，默认为 your-custom-endpoint.com:5666）
+
+## 运行示例
+
+可以使用 `uv` 工具来运行 `examples` 目录下的示例程序：
+
+```bash
+# 基本语法
+uv run examples/<示例文件名>.py --user <用户名> --password <密码> [-e <服务器地址>]
+
+# 示例：运行user.py示例
+uv run examples/user.py --user myuser --password mypassword -e my-server.com:5666
+```
+
+### 示例程序说明
+
+下表列出了 `examples` 目录中各个示例程序的功能说明：
+
+| 文件名 | 功能说明 |
+| ------ | -------- |
+| `not_connected.py` | 演示如何捕获和处理NotConnectedError异常来判断是否需要重连 |
+| `reconnect.py` | 演示如何使用FnosClient的自动重连功能 |
+| `resource_monitor.py` | 演示如何获取系统资源监控信息（CPU、GPU、内存） |
+| `sac.py` | 演示如何获取UPS状态信息 |
+| `store.py` | 演示如何获取存储相关信息 |
+| `system_info.py` | 演示如何获取系统信息（主机名、版本、硬件等） |
+| `user.py` | 演示User模块的各种功能（获取用户信息、用户组等） |
