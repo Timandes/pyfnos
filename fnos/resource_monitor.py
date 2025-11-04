@@ -14,7 +14,11 @@
 
 import json
 import asyncio
+import logging
 from .client import FnosClient
+
+# 创建logger实例
+logger = logging.getLogger(__name__)
 
 
 class ResourceMonitor:

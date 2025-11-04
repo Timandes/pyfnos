@@ -20,6 +20,7 @@ import base64
 import random
 import hashlib
 import hmac
+import logging
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_v1_5
 from Crypto.Random import get_random_bytes
@@ -27,6 +28,16 @@ from Crypto.Util.Padding import pad, unpad
 import websockets
 
 from .exceptions import NotConnectedError
+
+# 设置日志格式
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+# 创建logger实例
+logger = logging.getLogger(__name__)
 
 class FnosClient:
     def __init__(self):
@@ -124,7 +135,7 @@ class FnosClient:
             
             return unpadded_data.decode('utf-8')
         except Exception as e:
-            print(f"解密secret失败: {e}")
+            logger.error(f"解密secret失败: {e}")
             return None
     
     def _decrypt_login_secret(self, encrypted_secret):
@@ -140,31 +151,31 @@ class FnosClient:
             
             return base64.b64encode(unpadded_data).decode('utf-8')
         except Exception as e:
-            print(f"解密登录secret失败: {e}")
+            logger.error(f"解密登录secret失败: {e}")
             return None
     
     async def connect(self, endpoint, timeout: float = 3.0):
         """连接到WebSocket服务器"""
         try:
-            print("正在连接到WebSocket服务器...")
+            logger.info("正在连接到WebSocket服务器...")
             # 保存endpoint用于重连
             self.endpoint = endpoint
             # 创建WebSocket连接
             self.ws = await websockets.connect(f"ws://{endpoint}/websocket?type=main")
-            print("websockets.connect returned")
+            logger.debug("websockets.connect returned")
 
-            print("Creating async message handler...")
+            logger.debug("Creating async message handler...")
             # 启动消息处理任务
             self.message_task = asyncio.create_task(self._message_handler())
-            print("Async message handler task created")
+            logger.debug("Async message handler task created")
             
             # 创建一个Future对象来等待连接完成
             self.connect_future = asyncio.Future()
             
-            print("Sending first request...")
+            logger.debug("Sending first request...")
             # 发送第一个请求获取RSA公钥
             await self._send_first_request()
-            print("First request sent")
+            logger.debug("First request sent")
             
             # 等待连接完成（最多等待指定的超时时间）
             try:
@@ -174,7 +185,7 @@ class FnosClient:
                 raise Exception("连接超时")
             
         except Exception as e:
-            print(f"连接失败: {e}")
+            logger.error(f"连接失败: {e}")
             self.connected = False
             raise
     
@@ -182,7 +193,7 @@ class FnosClient:
         """发送消息到服务器"""
         if self.ws:  # 只需要检查WebSocket连接存在，不需要等待连接完全建立
             message_json = json.dumps(message)
-            print(f"Sending message: {message_json}")
+            logger.debug(f"Sending message: {message_json}")
             await self.ws.send(message_json)
             
     async def _message_handler(self):
@@ -194,15 +205,15 @@ class FnosClient:
                     try:
                         self.on_message_callback(message)
                     except Exception as e:
-                        print(f"外部消息回调函数出错: {e}")
+                        logger.warning(f"外部消息回调函数出错: {e}")
                 
                 await self._process_message(message)
         except websockets.exceptions.ConnectionClosed:
-            print("WebSocket连接已关闭")
+            logger.debug("WebSocket连接已关闭")
             self.connected = False
             self.stop_heartbeat = True
         except Exception as e:
-            print(f"消息处理错误: {e}")
+            logger.error(f"消息处理错误: {e}")
             
     async def _process_message(self, message):
         """处理接收到的消息"""
@@ -212,11 +223,11 @@ class FnosClient:
                 # 这是第一个请求的响应（获取RSA公钥）
                 self.public_key = data["pub"]
                 self.session_id = data["si"]
-                print(f"已获取RSA公钥: {data['pub']}")
-                print(f"会话ID: {data['si']}")
+                logger.debug(f"已获取RSA公钥: {data['pub']}")
+                logger.debug(f"会话ID: {data['si']}")
                 # 设置连接状态为已连接
                 self.connected = True
-                print("WebSocket连接已建立")
+                logger.info("WebSocket连接已建立")
                 # 设置连接future完成
                 if hasattr(self, 'connect_future') and not self.connect_future.done():
                     self.connect_future.set_result(True)
@@ -225,29 +236,29 @@ class FnosClient:
             elif "data" in data and "hostName" in data:
                 # 这是第二个请求的响应（获取主机名）
                 self.host_name = data["data"]["hostName"]
-                print(f"主机名: {self.host_name}")
-                print(f"Trim版本: {data['data']['trimVersion']}")
+                logger.debug(f"主机名: {self.host_name}")
+                logger.debug(f"Trim版本: {data['data']['trimVersion']}")
                 # 启动心跳机制
                 await self._start_heartbeat()
             elif "res" in data and data["res"] == "pong":
                 # 这是心跳响应
-                print("收到心跳响应: pong")
+                logger.debug("收到心跳响应: pong")
             elif "uid" in data and "result" in data and data["result"] == "succ":
                 # 这是登录响应
                 self.login_response = data
                 # 解密secret字段并保存
                 if "secret" in data:
                     self.decrypted_secret = self._decrypt_login_secret(data["secret"])
-                    print(f"服务器返回的secret: {self.decrypted_secret}")
+                    logger.debug(f"服务器返回的secret: {self.decrypted_secret}")
                 if self.login_future and not self.login_future.done():
                     self.login_future.set_result(self.login_response)
-                print("登录成功")
+                logger.info("登录成功")
             elif "result" in data and data["result"] == "fail":
                 # 登录失败
                 self.login_response = data
                 if self.login_future and not self.login_future.done():
                     self.login_future.set_result(self.login_response)
-                print(f"登录失败: {data.get('msg', '未知错误')}")
+                logger.error(f"登录失败: {data.get('msg', '未知错误')}")
             else:
                 # 检查消息中是否包含reqid，这可能是待处理请求的响应
                 if "reqid" in data:
@@ -259,9 +270,9 @@ class FnosClient:
                         # 设置响应结果
                         if not req_data['future'].done():
                             req_data['future'].set_result(data)
-                        print(f"收到待处理请求的响应: {reqid}")
+                        logger.debug(f"收到待处理请求的响应: {reqid}")
                     else:
-                        print(f"收到未知请求ID的响应: {reqid}")
+                        logger.warning(f"收到未知请求ID的响应: {reqid}")
                 else:
                     # 检查是否有待处理的请求在等待这个响应
                     # 这里我们简单地将所有其他消息视为请求响应
@@ -271,7 +282,7 @@ class FnosClient:
                         if not req_data['future'].done():
                             req_data['future'].set_result(message)
                         break
-                    print(f"收到未知消息: {message}")
+                    logger.warning(f"收到未知消息: {message}")
         except json.JSONDecodeError:
             # 如果不是JSON格式，检查是否有待处理的请求在等待这个响应
             for req_id, req_data in list(self.pending_requests.items()):
@@ -279,7 +290,7 @@ class FnosClient:
                 if not req_data['future'].done():
                     req_data['future'].set_result(message)
                 break
-            print(f"无法解析消息: {message}")
+            logger.error(f"无法解析消息: {message}")
         
     async def _send_first_request(self):
         """发送第一个请求获取RSA公钥"""
@@ -309,7 +320,7 @@ class FnosClient:
                         "req": "ping"
                     }
                     await self._send_message(message)
-                    print("已发送心跳请求")
+                    logger.debug("已发送心跳请求")
         
         # 启动心跳任务
         self.heartbeat_task = asyncio.create_task(heartbeat_worker())
@@ -328,7 +339,7 @@ class FnosClient:
         
         # 加密登录数据
         encrypted_data = self._encrypt_login_data(username, password)
-        print(f"Sending login request: {encrypted_data}")
+        logger.debug(f"Sending login request: {encrypted_data}")
         
         # 发送登录请求并等待响应
         self.login_future = asyncio.Future()
@@ -372,15 +383,15 @@ class FnosClient:
             raise Exception("未获取到secret")
         
         # 计算iz(e) + e
-        print(f"Sending msg: {e}")
+        logger.debug(f"Sending msg: {e}")
         iz_result = self._iz(e)
-        print(f"Calculated iz-result: {iz_result}")
+        logger.debug(f"Calculated iz-result: {iz_result}")
         request_data = iz_result + e
-        print(f"Sending msg to channel: {request_data}")
+        logger.debug(f"Sending msg to channel: {request_data}")
         
         # 发送数据
         await self.ws.send(request_data)
-        print(f"已发送请求: {request_data}")
+        logger.debug(f"已发送请求: {request_data}")
     
     async def request_payload(self, req: str, payload: dict):
         """以payload为主体，添加req和reqid后发送请求"""
@@ -436,7 +447,7 @@ class FnosClient:
     async def reconnect(self, connect_timeout: float = 3.0, login_timeout: float = 10.0):
         """重连方法：在connected==False的前提下，先用存的endpoint做connect()，成功后用存的用户名和密码做login()"""
         if self.connected:
-            print("已经连接，无需重连")
+            logger.info("已经连接，无需重连")
             return True
             
         if not self.endpoint:
@@ -445,7 +456,7 @@ class FnosClient:
         if not self.username or not self.password:
             raise Exception("没有保存的用户名和密码用于重连")
         
-        print("开始重连...")
+        logger.info("开始重连...")
         
         # 先连接（connect方法现在会等待连接完成）
         await self.connect(self.endpoint, timeout=connect_timeout)
@@ -454,7 +465,7 @@ class FnosClient:
         login_result = await self.login(self.username, self.password, timeout=login_timeout)
         
         if login_result and login_result.get("result") == "succ":
-            print("重连成功")
+            logger.info("重连成功")
             return True
         else:
             raise Exception("重连失败：登录失败")
