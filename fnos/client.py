@@ -50,6 +50,7 @@ class FnosClient:
         self.stop_heartbeat = False
         self.login_response = None
         self.login_future = None
+        self.login_reqid = None  # 用于保存登录请求的reqid
         self.decrypted_secret = None
         self.aes_key = None
         self.iv = None
@@ -99,6 +100,9 @@ class FnosClient:
             "req": "user.login",
             "si": self.session_id
         }
+        
+        # 保存登录请求的reqid
+        self.login_reqid = login_data["reqid"]
         
         # 使用AES密钥加密登录数据
         json_data = json.dumps(login_data, separators=(',', ':'))
@@ -253,12 +257,12 @@ class FnosClient:
                 if self.login_future and not self.login_future.done():
                     self.login_future.set_result(self.login_response)
                 logger.info("登录成功")
-            elif "result" in data and data["result"] == "fail":
-                # 登录失败
+            elif "result" in data and data["result"] == "fail" and self.login_reqid and "reqid" in data and data["reqid"] == self.login_reqid:
+                # 登录失败 - 只有reqid匹配登录请求的响应才处理为登录失败
                 self.login_response = data
                 if self.login_future and not self.login_future.done():
                     self.login_future.set_result(self.login_response)
-                logger.error(f"登录失败: {data.get('msg', '未知错误')}")
+                logger.error(f"登录失败: {data.get('msg', data.get('errmsg', '未知错误'))}")
             else:
                 # 检查消息中是否包含reqid，这可能是待处理请求的响应
                 if "reqid" in data:
@@ -348,8 +352,12 @@ class FnosClient:
         # 等待登录响应（最多等待指定的超时时间）
         try:
             await asyncio.wait_for(self.login_future, timeout=timeout)
+            # 登录完成后清理login_reqid
+            self.login_reqid = None
             return self.login_response
         except asyncio.TimeoutError:
+            # 超时也要清理login_reqid
+            self.login_reqid = None
             raise Exception("登录超时")
     
     def get_decrypted_secret(self):
