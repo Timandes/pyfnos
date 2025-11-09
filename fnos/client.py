@@ -64,11 +64,12 @@ class FnosClient:
         
     def _generate_reqid(self):
         """生成唯一的reqid"""
-        # 使用时间戳和随机数来确保唯一性
-        timestamp = int(time.time() * 1000000)  # 微秒级时间戳
-        random_part = uuid.uuid4().hex[:16]  # 16位随机字符串
-        # 格式化为指定格式: timestamp(16位) + random_part(16位)
-        reqid = f"{timestamp:016x}"[:16] + random_part[:16]
+        # 使用时间戳和随机数来确保唯一性，不超过28个字符
+        timestamp = int(time.time() * 1000)  # 毫秒级时间戳 (13位数字)
+        random_part = uuid.uuid4().hex[:12]  # 12位随机字符串
+        # 格式化为指定格式: timestamp + random_part，总长度不超过28
+        # 13位timestamp + 12位random_part = 25位，小于28位限制
+        reqid = f"{timestamp}{random_part}"
         return reqid
     
     def _generate_did(self):
