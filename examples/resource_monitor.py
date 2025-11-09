@@ -68,6 +68,27 @@ async def main():
                 print("内存资源信息:", memory_result)
             except Exception as e:
                 print(f"获取内存资源信息失败: {e}")
+            
+            # 调用disk方法
+            try:
+                disk_result = await resource_monitor.disk()
+                print("磁盘资源信息:", disk_result)
+            except Exception as e:
+                print(f"获取磁盘资源信息失败: {e}")
+            
+            # 调用net方法
+            try:
+                net_result = await resource_monitor.net()
+                print("网络资源信息:", net_result)
+            except Exception as e:
+                print(f"获取网络资源信息失败: {e}")
+            
+            # 调用general方法
+            try:
+                general_result = await resource_monitor.general()
+                print("通用资源信息:", general_result)
+            except Exception as e:
+                print(f"获取通用资源信息失败: {e}")
         except Exception as e:
             print(f"登录失败: {e}")
     else:

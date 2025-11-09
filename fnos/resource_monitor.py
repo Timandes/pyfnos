@@ -72,3 +72,45 @@ class ResourceMonitor:
         # 使用FnoClient的新方法发送请求并等待响应
         response = await self.client.request_payload_with_response("appcgi.resmon.mem", {}, timeout)
         return response
+    
+    async def disk(self, timeout: float = 10.0) -> dict:
+        """
+        请求磁盘资源监控信息
+        
+        Args:
+            timeout: 请求超时时间（秒），默认为10.0秒
+            
+        Returns:
+            dict: 服务器返回的结果
+        """
+        # 使用FnoClient的新方法发送请求并等待响应
+        response = await self.client.request_payload_with_response("appcgi.resmon.disk", {}, timeout)
+        return response
+    
+    async def net(self, timeout: float = 10.0) -> dict:
+        """
+        请求网络资源监控信息
+        
+        Args:
+            timeout: 请求超时时间（秒），默认为10.0秒
+            
+        Returns:
+            dict: 服务器返回的结果
+        """
+        # 使用FnoClient的新方法发送请求并等待响应
+        response = await self.client.request_payload_with_response("appcgi.resmon.net", {}, timeout)
+        return response
+    
+    async def general(self, timeout: float = 10.0) -> dict:
+        """
+        请求通用资源监控信息
+        
+        Args:
+            timeout: 请求超时时间（秒），默认为10.0秒
+            
+        Returns:
+            dict: 服务器返回的结果
+        """
+        # 使用FnoClient的新方法发送请求并等待响应
+        response = await self.client.request_payload_with_response("appcgi.resmon.gen", {}, timeout)
+        return response
