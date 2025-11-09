@@ -44,3 +44,35 @@ class Store:
         # 使用FnoClient的新方法发送请求并等待响应
         response = await self.client.request_payload_with_response("stor.general", {}, timeout)
         return response
+    
+    async def calculate_space(self, timeout: float = 10.0) -> dict:
+        """
+        计算存储空间信息
+        
+        Args:
+            timeout: 请求超时时间（秒），默认为10.0秒
+            
+        Returns:
+            dict: 服务器返回的结果
+        """
+        # 使用FnoClient的新方法发送请求并等待响应
+        response = await self.client.request_payload_with_response("stor.calcSpace", {}, timeout)
+        return response
+    
+    async def list_disks(self, no_hot_spare: bool = True, timeout: float = 10.0) -> dict:
+        """
+        列出磁盘信息
+        
+        Args:
+            no_hot_spare: 是否排除热备盘，默认为True
+            timeout: 请求超时时间（秒），默认为10.0秒
+            
+        Returns:
+            dict: 服务器返回的结果
+        """
+        # 构造请求参数
+        payload = {"noHotSpare": no_hot_spare}
+        
+        # 使用FnoClient的新方法发送请求并等待响应
+        response = await self.client.request_payload_with_response("stor.listDisk", payload, timeout)
+        return response

@@ -54,6 +54,27 @@ async def main():
                 print("存储通用信息:", store_result)
             except Exception as e:
                 print(f"获取存储信息失败: {e}")
+            
+            # 调用calculate_space方法
+            try:
+                space_result = await store.calculate_space()
+                print("存储空间计算结果:", space_result)
+            except Exception as e:
+                print(f"计算存储空间失败: {e}")
+            
+            # 调用list_disks方法（排除热备盘，使用默认值）
+            try:
+                disks_result = await store.list_disks()
+                print("磁盘列表信息（排除热备盘）:", disks_result)
+            except Exception as e:
+                print(f"获取磁盘列表失败: {e}")
+            
+            # 调用list_disks方法（包含热备盘）
+            try:
+                disks_result_with_hot_spare = await store.list_disks(no_hot_spare=False)
+                print("磁盘列表信息（包含热备盘）:", disks_result_with_hot_spare)
+            except Exception as e:
+                print(f"获取磁盘列表（包含热备盘）失败: {e}")
         except Exception as e:
             print(f"登录失败: {e}")
     else:

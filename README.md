@@ -84,6 +84,8 @@ if __name__ == "__main__":
 | FnosClient | `close` | 关闭WebSocket连接 |
 | Store | `__init__` | 初始化Store类 |
 | Store | `general` | 请求存储通用信息 |
+| Store | `calculate_space` | 计算存储空间信息 |
+| Store | `list_disks` | 列出磁盘信息（支持no_hot_spare参数） |
 | ResourceMonitor | `__init__` | 初始化ResourceMonitor类 |
 | ResourceMonitor | `cpu` | 请求CPU资源监控信息 |
 | ResourceMonitor | `gpu` | 请求GPU资源监控信息 |
