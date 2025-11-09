@@ -23,7 +23,7 @@ def on_message_handler(message):
 async def main():
     """主函数"""
     # 解析命令行参数
-    parser = argparse.ArgumentParser(description='Fnos资源监控示例')
+    parser = argparse.ArgumentParser(description='Fnos资源监控通用信息示例')
     parser.add_argument('--user', type=str, required=True, help='用户名')
     parser.add_argument('--password', type=str, required=True, help='密码')
     parser.add_argument('-e', '--endpoint', type=str, default='your-custom-endpoint.com:5666', help='服务器地址 (默认: your-custom-endpoint.com:5666)')
@@ -48,42 +48,21 @@ async def main():
             # 创建ResourceMonitor实例
             resource_monitor = ResourceMonitor(client)
             
-            # 调用cpu方法
+            # 调用general方法（使用默认items参数）
             try:
-                cpu_result = await resource_monitor.cpu()
-                print("CPU资源信息:", cpu_result)
+                general_result = await resource_monitor.general()
+                print("通用资源信息（默认items）:", general_result)
             except Exception as e:
-                print(f"获取CPU资源信息失败: {e}")
+                print(f"获取通用资源信息失败: {e}")
             
-            # 调用gpu方法
+            # 调用general方法（使用自定义items参数）
             try:
-                gpu_result = await resource_monitor.gpu()
-                print("GPU资源信息:", gpu_result)
+                custom_items = ["cpuBusy", "memPercent"]
+                general_result = await resource_monitor.general(items=custom_items)
+                print("通用资源信息（自定义items）:", general_result)
             except Exception as e:
-                print(f"获取GPU资源信息失败: {e}")
-            
-            # 调用memory方法
-            try:
-                memory_result = await resource_monitor.memory()
-                print("内存资源信息:", memory_result)
-            except Exception as e:
-                print(f"获取内存资源信息失败: {e}")
-            
-            # 调用disk方法
-            try:
-                disk_result = await resource_monitor.disk()
-                print("磁盘资源信息:", disk_result)
-            except Exception as e:
-                print(f"获取磁盘资源信息失败: {e}")
-            
-            # 调用net方法
-            try:
-                net_result = await resource_monitor.net()
-                print("网络资源信息:", net_result)
-            except Exception as e:
-                print(f"获取网络资源信息失败: {e}")
-            
-            
+                print(f"获取通用资源信息失败: {e}")
+                
         except Exception as e:
             print(f"登录失败: {e}")
     else:

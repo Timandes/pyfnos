@@ -90,7 +90,7 @@ if __name__ == "__main__":
 | ResourceMonitor | `memory` | 请求内存资源监控信息 |
 | ResourceMonitor | `disk` | 请求磁盘资源监控信息 |
 | ResourceMonitor | `net` | 请求网络资源监控信息 |
-| ResourceMonitor | `general` | 请求通用资源监控信息 |
+| ResourceMonitor | `general` | 请求通用资源监控信息（支持指定监控项列表，默认为["storeSpeed","netSpeed","cpuBusy","memPercent"]） |
 | SAC | `__init__` | 初始化SAC类 |
 | SAC | `ups_status` | 请求UPS状态信息 |
 | SystemInfo | `__init__` | 初始化SystemInfo类 |
@@ -133,7 +133,8 @@ uv run examples/user.py --user myuser --password mypassword -e my-server.com:566
 | ------ | -------- |
 | `not_connected.py` | 演示如何捕获和处理NotConnectedError异常来判断是否需要重连 |
 | `reconnect.py` | 演示如何使用FnosClient的自动重连功能 |
-| `resource_monitor.py` | 演示如何获取系统资源监控信息（CPU、GPU、内存、磁盘、网络、通用资源） |
+| `resource_monitor.py` | 演示如何获取系统资源监控信息（CPU、GPU、内存、磁盘、网络） |
+| `resource_monitor_general.py` | 演示如何获取通用资源监控信息（支持指定监控项列表） |
 | `sac.py` | 演示如何获取UPS状态信息 |
 | `store.py` | 演示如何获取存储相关信息 |
 | `system_info.py` | 演示如何获取系统信息（主机名、版本、硬件等） |

@@ -101,16 +101,21 @@ class ResourceMonitor:
         response = await self.client.request_payload_with_response("appcgi.resmon.net", {}, timeout)
         return response
     
-    async def general(self, timeout: float = 10.0) -> dict:
+    async def general(self, timeout: float = 10.0, items: list = None) -> dict:
         """
         请求通用资源监控信息
         
         Args:
             timeout: 请求超时时间（秒），默认为10.0秒
+            items: 要查询的资源监控项列表，默认为["storeSpeed","netSpeed","cpuBusy","memPercent"]
             
         Returns:
             dict: 服务器返回的结果
         """
+        if items is None:
+            items = ["storeSpeed", "netSpeed", "cpuBusy", "memPercent"]
+        
+        payload = {"item": items}
         # 使用FnoClient的新方法发送请求并等待响应
-        response = await self.client.request_payload_with_response("appcgi.resmon.gen", {}, timeout)
+        response = await self.client.request_payload_with_response("appcgi.resmon.gen", payload, timeout)
         return response
