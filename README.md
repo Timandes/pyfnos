@@ -106,6 +106,9 @@ if __name__ == "__main__":
 | User | `listUserGroups` | 请求用户和组列表信息 |
 | User | `groupUsers` | 请求用户分组信息 |
 | User | `isAdmin` | 检查当前用户是否为管理员 |
+| Network | `__init__` | 初始化Network类 |
+| Network | `list` | 列出网络信息（支持type参数，可选值为0和1） |
+| Network | `detect` | 检测网络接口（支持ifName参数） |
 
 ## 命令行参数
 
@@ -141,3 +144,4 @@ uv run examples/user.py --user myuser --password mypassword -e my-server.com:566
 | `store.py` | 演示如何获取存储相关信息 |
 | `system_info.py` | 演示如何获取系统信息（主机名、版本、硬件等） |
 | `user.py` | 演示User模块的各种功能（获取用户信息、用户组等） |
+| `network.py` | 演示如何获取网络信息（支持type参数，可选值为0和1）和检测网络接口（支持ifName参数） |
