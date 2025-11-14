@@ -40,7 +40,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class FnosClient:
-    def __init__(self):
+    def __init__(self, type: str = "main"):
+        """
+        初始化FnosClient
+        
+        Args:
+            type (str): 连接类型，可选值为"main"或"timer"，默认为"main"
+        """
+        if type not in ["main", "timer"]:
+            raise ValueError("type参数必须是'main'或'timer'")
+            
+        self.type = type
         self.ws = None
         self.public_key = None
         self.host_name = None
@@ -165,8 +175,8 @@ class FnosClient:
             logger.info("正在连接到WebSocket服务器...")
             # 保存endpoint用于重连
             self.endpoint = endpoint
-            # 创建WebSocket连接
-            self.ws = await websockets.connect(f"ws://{endpoint}/websocket?type=main")
+            # 创建WebSocket连接，使用构造函数设置的type参数
+            self.ws = await websockets.connect(f"ws://{endpoint}/websocket?type={self.type}")
             logger.debug("websockets.connect returned")
 
             logger.debug("Creating async message handler...")

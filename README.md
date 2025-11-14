@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
 | 类名 | 方法名 | 简介 |
 | ---- | ---- | ---- |
-| FnosClient | `__init__` | 初始化客户端 |
+| FnosClient | `__init__` | 初始化客户端，支持type参数（"main"或"timer"，默认为"main"） |
 | FnosClient | `connect` | 连接到WebSocket服务器（必填参数：endpoint） |
 | FnosClient | `login` | 用户登录方法 |
 | FnosClient | `get_decrypted_secret` | 获取解密后的secret |
