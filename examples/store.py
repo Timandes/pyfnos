@@ -75,6 +75,23 @@ async def main():
                 print("磁盘列表信息（包含热备盘）:", disks_result_with_hot_spare)
             except Exception as e:
                 print(f"获取磁盘列表（包含热备盘）失败: {e}")
+            
+            # 调用get_disk_smart方法
+            try:
+                smart_result = await store.get_disk_smart("sda")
+                print("磁盘SMART信息:", smart_result)
+            except Exception as e:
+                print(f"获取磁盘SMART信息失败: {e}")
+            
+            # 调用get_state方法
+            try:
+                state_result = await store.get_state(
+                    ["dm-1", "dm-0"],
+                    ["trim_7cdec818_a061_415b_9307_400e4539235a-0", "trim_13b15f05_d1cb_4fa3_8252_02809cab2410-0"]
+                )
+                print("存储状态信息:", state_result)
+            except Exception as e:
+                print(f"获取存储状态信息失败: {e}")
         except Exception as e:
             print(f"登录失败: {e}")
     else:

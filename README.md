@@ -86,6 +86,8 @@ if __name__ == "__main__":
 | Store | `general` | 请求存储通用信息（需要管理员权限，非管理员访问会返回4352错误） |
 | Store | `calculate_space` | 计算存储空间信息（需要管理员权限，非管理员访问会返回4352错误） |
 | Store | `list_disks` | 列出磁盘信息（支持no_hot_spare参数，需要管理员权限，非管理员访问会返回4352错误） |
+| Store | `get_disk_smart` | 获取磁盘SMART信息（支持disk参数，需要管理员权限，非管理员访问会返回4352错误） |
+| Store | `get_state` | 获取存储状态信息（支持name和uuid参数，需要管理员权限，非管理员访问会返回4352错误） |
 | ResourceMonitor | `__init__` | 初始化ResourceMonitor类 |
 | ResourceMonitor | `cpu` | 请求CPU资源监控信息 |
 | ResourceMonitor | `gpu` | 请求GPU资源监控信息 |
