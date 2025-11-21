@@ -25,6 +25,6 @@ from .system_info import SystemInfo
 from .user import User
 from .network import Network
 
-__version__ = "0.8.1"
+__version__ = "0.9.0"
 
 __all__ = ["FnosClient", "Store", "ResourceMonitor", "SAC", "SystemInfo", "User", "Network"]
