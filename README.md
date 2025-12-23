@@ -29,14 +29,14 @@ async def main():
     parser.add_argument('--user', type=str, required=True, help='用户名')
     parser.add_argument('--password', type=str, required=True, help='密码')
     parser.add_argument('-e', '--endpoint', type=str, default='your-custom-endpoint.com:5666', help='服务器地址 (默认: your-custom-endpoint.com:5666)')
-    
+
     args = parser.parse_args()
-    
+
     client = FnosClient()
-    
+
     # 设置消息回调
     client.on_message(on_message_handler)
-    
+
     # 连接到服务器（必须指定endpoint）
     await client.connect(args.endpoint)
 
@@ -49,17 +49,17 @@ async def main():
     print("已发送请求，等待响应...")
     # 等待一段时间以接收响应
     await asyncio.sleep(5)
-    
+
     # 演示重连功能（手动方式）
     await client.close()  # 先关闭连接
     print("连接已关闭，尝试重连...")
     await client.connect(args.endpoint)  # 重新连接（现在会等待连接完成）
     result = await client.login(args.user, args.password)  # 重新登录
     print("重连登录结果:", result)
-    
+
     # 或者使用内置的重连方法（需要先确保连接已断开）
     # await client.reconnect()  # 使用内置重连方法
-    
+
     # 关闭连接
     await client.close()
 
@@ -111,6 +111,9 @@ if __name__ == "__main__":
 | Network | `__init__` | 初始化Network类 |
 | Network | `list` | 列出网络信息（支持type参数，可选值为0和1） |
 | Network | `detect` | 检测网络接口（支持ifName参数） |
+| File | `list` | 列出指定目录下的文件和文件夹 |
+| File | `mkdir` | 创建文件夹 |
+| File | `remove` | 删除文件或文件夹 |
 
 ## 命令行参数
 
