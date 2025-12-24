@@ -391,7 +391,6 @@ class FnosClient:
         # 使用 token 登录
         payload = {"main": True, "token": token, "si": self.session_id}
         response = await self.request_payload_with_response("user.authToken", payload, timeout)
-        print(response)
 
         # 登录失败，使用 long_token 登录
         if response.get("errno") == 135168:
@@ -490,7 +489,7 @@ class FnosClient:
         payload_data["reqid"] = reqid
 
         # JSON序列化之后访问request()方法完成发送
-        json_data = json.dumps(payload_data, separators=(',', ':'))
+        json_data = json.dumps(payload_data, separators=(',', ':'), ensure_ascii=False)
         await self.request(json_data)
 
         # 等待响应（最多等待指定的超时时间）
