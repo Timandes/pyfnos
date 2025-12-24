@@ -54,6 +54,7 @@ class FnosClient:
         self.ws = None
         self.public_key = None
         self.host_name = None
+        self.trim_version = None
         self.session_id = None
         self.connected = False
         self.heartbeat_task = None
@@ -250,9 +251,10 @@ class FnosClient:
                     self.connect_future.set_result(True)
                 # 发送第二个请求
                 await self._send_second_request()
-            elif "data" in data and "hostName" in data:
+            elif "data" in data and "hostName" in data["data"]:
                 # 这是第二个请求的响应（获取主机名）
                 self.host_name = data["data"]["hostName"]
+                self.trim_version = data["data"]["trimVersion"]
                 logger.debug(f"主机名: {self.host_name}")
                 logger.debug(f"Trim版本: {data['data']['trimVersion']}")
                 # 启动心跳机制
