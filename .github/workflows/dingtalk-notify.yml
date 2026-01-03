@@ -1,0 +1,58 @@
+name: DingTalk Notification
+
+on:
+  issues:
+    types: [opened, edited, closed, reopened]
+  pull_request:
+    types: [opened, edited, closed, reopened, review_requested]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    if: github.event.sender.type == 'User'  # 只通知用户，忽略机器人
+    steps:
+      - name: Send to DingTalk
+        run: |
+          if [ "${{ github.event_name }}" == "issues" ]; then
+            EVENT_TYPE="Issue"
+            ACTION="${{ github.event.action }}"
+            TITLE="${{ github.event.issue.title }}"
+            URL="${{ github.event.issue.html_url }}"
+            AUTHOR="${{ github.event.issue.user.login }}"
+          else
+            EVENT_TYPE="Pull Request"
+            ACTION="${{ github.event.action }}"
+            TITLE="${{ github.event.pull_request.title }}"
+            URL="${{ github.event.pull_request.html_url }}"
+            AUTHOR="${{ github.event.pull_request.user.login }}"
+          fi
+
+          # 根据动作类型设置emoji
+          case "$ACTION" in
+            opened)
+              EMOJI="🆕"
+              ;;
+            edited)
+              EMOJI="✏️"
+              ;;
+            closed)
+              EMOJI="✅"
+              ;;
+            reopened)
+              EMOJI="🔄"
+              ;;
+            review_requested)
+              EMOJI="👀"
+              ;;
+            *)
+              EMOJI="📌"
+              ;;
+          esac
+
+          # 构造钉钉消息
+          MESSAGE="{\n            \"msgtype\": \"markdown\",\n            \"markdown\": {\n              \"title\": \"GitHub ${EVENT_TYPE} ${ACTION}\",\n              \"text\": \"## ${EMOJI} GitHub ${EVENT_TYPE} ${ACTION}\\n\\n**仓库**: ${{ github.repository }}\\n\\n**标题**: ${TITLE}\\n\\n**操作人**: ${AUTHOR}\\n\\n[查看详情](${URL})\"\n            }\n          }"
+
+          # 发送到钉钉
+          curl -X POST "${{ secrets.DINGTALK_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d "$MESSAGE"
