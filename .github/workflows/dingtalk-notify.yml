@@ -49,10 +49,13 @@ jobs:
               ;;
           esac
 
-          # 构造钉钉消息
-          MESSAGE="{\n            \"msgtype\": \"markdown\",\n            \"markdown\": {\n              \"title\": \"GitHub ${EVENT_TYPE} ${ACTION}\",\n              \"text\": \"## ${EMOJI} GitHub ${EVENT_TYPE} ${ACTION}\\n\\n**仓库**: ${{ github.repository }}\\n\\n**标题**: ${TITLE}\\n\\n**操作人**: ${AUTHOR}\\n\\n[查看详情](${URL})\"\n            }\n          }"
-
-          # 发送到钉钉
+# 发送到钉钉
           curl -X POST "${{ secrets.DINGTALK_WEBHOOK }}" \
             -H "Content-Type: application/json" \
-            -d "$MESSAGE"
+            -d '{
+              "msgtype": "markdown",
+              "markdown": {
+                "title": "GitHub '""${EVENT_TYPE}""' '""${ACTION}""'",
+                "text": "## '""${EMOJI}""' GitHub '""${EVENT_TYPE}""' '""${ACTION}""'\n\n**仓库**: '""${{ github.repository }}""'\n\n**标题**: '""${TITLE}""'\n\n**操作人**: '""${AUTHOR}""'\n\n[查看详情]('""${URL}""')"
+              }
+            }'
