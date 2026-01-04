@@ -24,7 +24,8 @@ from .sac import SAC
 from .system_info import SystemInfo
 from .user import User
 from .network import Network
+from .file import File
 
 __version__ = "0.9.0"
 
-__all__ = ["FnosClient", "Store", "ResourceMonitor", "SAC", "SystemInfo", "User", "Network"]
+__all__ = ["FnosClient", "Store", "ResourceMonitor", "SAC", "SystemInfo", "User", "Network", "File"]

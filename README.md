@@ -29,14 +29,14 @@ async def main():
     parser.add_argument('--user', type=str, required=True, help='用户名')
     parser.add_argument('--password', type=str, required=True, help='密码')
     parser.add_argument('-e', '--endpoint', type=str, default='your-custom-endpoint.com:5666', help='服务器地址 (默认: your-custom-endpoint.com:5666)')
-    
+
     args = parser.parse_args()
-    
+
     client = FnosClient()
-    
+
     # 设置消息回调
     client.on_message(on_message_handler)
-    
+
     # 连接到服务器（必须指定endpoint）
     await client.connect(args.endpoint)
 
@@ -49,17 +49,17 @@ async def main():
     print("已发送请求，等待响应...")
     # 等待一段时间以接收响应
     await asyncio.sleep(5)
-    
+
     # 演示重连功能（手动方式）
     await client.close()  # 先关闭连接
     print("连接已关闭，尝试重连...")
     await client.connect(args.endpoint)  # 重新连接（现在会等待连接完成）
     result = await client.login(args.user, args.password)  # 重新登录
     print("重连登录结果:", result)
-    
+
     # 或者使用内置的重连方法（需要先确保连接已断开）
     # await client.reconnect()  # 使用内置重连方法
-    
+
     # 关闭连接
     await client.close()
 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
 | 类名 | 方法名 | 简介 |
 | ---- | ---- | ---- |
-| FnosClient | `__init__` | 初始化客户端，支持type参数（"main"或"timer"，默认为"main"） |
+| FnosClient | `__init__` | 初始化客户端，支持type参数（"main"、"timer"或"file"，默认为"main"） |
 | FnosClient | `connect` | 连接到WebSocket服务器（必填参数：endpoint） |
 | FnosClient | `login` | 用户登录方法 |
 | FnosClient | `get_decrypted_secret` | 获取解密后的secret |
@@ -111,6 +111,9 @@ if __name__ == "__main__":
 | Network | `__init__` | 初始化Network类 |
 | Network | `list` | 列出网络信息（支持type参数，可选值为0和1） |
 | Network | `detect` | 检测网络接口（支持ifName参数） |
+| File | `list` | 列出指定目录下的文件和文件夹 |
+| File | `mkdir` | 创建文件夹 |
+| File | `remove` | 删除文件或文件夹 |
 
 ## 命令行参数
 
@@ -147,3 +150,4 @@ uv run examples/user.py --user myuser --password mypassword -e my-server.com:566
 | `system_info.py` | 演示如何获取系统信息（主机名、版本、硬件等） |
 | `user.py` | 演示User模块的各种功能（获取用户信息、用户组等） |
 | `network.py` | 演示如何获取网络信息（支持type参数，可选值为0和1）和检测网络接口（支持ifName参数） |
+| `file.py` | 演示File模块的各种功能（列出文件、创建文件夹、删除文件/文件夹） |
