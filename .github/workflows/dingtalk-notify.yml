@@ -9,7 +9,7 @@ on:
 jobs:
   notify:
     runs-on: ubuntu-latest
-    if: github.event.sender.type == 'User'  # 只通知用户，忽略机器人
+    if: github.event.sender.type == 'User'
     steps:
       - name: Send to DingTalk
         run: |
@@ -27,35 +27,18 @@ jobs:
             AUTHOR="${{ github.event.pull_request.user.login }}"
           fi
 
-          # 根据动作类型设置emoji
           case "$ACTION" in
-            opened)
-              EMOJI="🆕"
-              ;;
-            edited)
-              EMOJI="✏️"
-              ;;
-            closed)
-              EMOJI="✅"
-              ;;
-            reopened)
-              EMOJI="🔄"
-              ;;
-            review_requested)
-              EMOJI="👀"
-              ;;
-            *)
-              EMOJI="📌"
-              ;;
+            opened) EMOJI="🆕" ;;
+            edited) EMOJI="✏️" ;;
+            closed) EMOJI="✅" ;;
+            reopened) EMOJI="🔄" ;;
+            review_requested) EMOJI="👀" ;;
+            *) EMOJI="📌" ;;
           esac
 
-# 发送到钉钉
+          REPO="${{ github.repository }}"
+          TEXT="## ${EMOJI} GitHub ${EVENT_TYPE} ${ACTION}\n\n**仓库**: ${REPO}\n\n**标题**: ${TITLE}\n\n**操作人**: ${AUTHOR}\n\n[查看详情](${URL})"
+
           curl -X POST "${{ secrets.DINGTALK_WEBHOOK }}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "msgtype": "markdown",
-              "markdown": {
-                "title": "GitHub '""${EVENT_TYPE}""' '""${ACTION}""'",
-                "text": "## '""${EMOJI}""' GitHub '""${EVENT_TYPE}""' '""${ACTION}""'\n\n**仓库**: '""${{ github.repository }}""'\n\n**标题**: '""${TITLE}""'\n\n**操作人**: '""${AUTHOR}""'\n\n[查看详情]('""${URL}""')"
-              }
-            }'
+            -d "{\"msgtype\":\"markdown\",\"markdown\":{\"title\":\"GitHub ${EVENT_TYPE} ${ACTION}\",\"text\":\"${TEXT}\"}}"
