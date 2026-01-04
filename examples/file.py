@@ -93,10 +93,33 @@ async def main():
         result = await file.list(path=full_path)
         print(f"文件列表: {result}")
         
-        # 调用mkdir方法，创建文件夹
+        # 获取目录下的文件列表
+        existing_files = result.get("files", [])
+        existing_names = {f.get("name") for f in existing_files}
+        
+        # 生成随机文件夹名称，直到找到不存在的名字
+        import random
+        import string
+        
         print(f"\n在目录 {full_path} 下创建文件夹...")
-        new_folder = f"{full_path}/test_folder"
-        result = await file.mkdir(path=new_folder)
+        new_folder_name = None
+        new_folder_path = None
+        
+        while True:
+            # 生成随机文件夹名称（8位随机字符串）
+            random_name = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+            
+            # 检查是否已存在同名文件
+            if random_name not in existing_names:
+                new_folder_name = random_name
+                new_folder_path = f"{full_path}/{new_folder_name}"
+                print(f"找到可用的文件夹名称: {new_folder_name}")
+                break
+            
+            print(f"文件夹名称 {random_name} 已存在，重新生成...")
+        
+        # 创建文件夹
+        result = await file.mkdir(path=new_folder_path)
         print(f"创建文件夹结果: {result}")
         
         # 调用remove方法，删除文件
@@ -110,10 +133,10 @@ async def main():
         
         # 调用remove方法，删除文件夹
         print(f"\n删除目录 {full_path} 下的文件夹...")
-        # result = await file.remove(
-        #     files=[new_folder],
-        #     move_to_trashbin=False
-        # )
+        result = await file.remove(
+            files=[new_folder_path],
+            move_to_trashbin=False
+        )
         print(f"删除文件夹结果: {result}")
         
     except Exception as e:
