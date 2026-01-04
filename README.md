@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
 | 类名 | 方法名 | 简介 |
 | ---- | ---- | ---- |
-| FnosClient | `__init__` | 初始化客户端，支持type参数（"main"或"timer"，默认为"main"） |
+| FnosClient | `__init__` | 初始化客户端，支持type参数（"main"、"timer"或"file"，默认为"main"） |
 | FnosClient | `connect` | 连接到WebSocket服务器（必填参数：endpoint） |
 | FnosClient | `login` | 用户登录方法 |
 | FnosClient | `get_decrypted_secret` | 获取解密后的secret |
@@ -150,3 +150,4 @@ uv run examples/user.py --user myuser --password mypassword -e my-server.com:566
 | `system_info.py` | 演示如何获取系统信息（主机名、版本、硬件等） |
 | `user.py` | 演示User模块的各种功能（获取用户信息、用户组等） |
 | `network.py` | 演示如何获取网络信息（支持type参数，可选值为0和1）和检测网络接口（支持ifName参数） |
+| `file.py` | 演示File模块的各种功能（列出文件、创建文件夹、删除文件/文件夹） |

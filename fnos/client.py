@@ -45,10 +45,10 @@ class FnosClient:
         初始化FnosClient
         
         Args:
-            type (str): 连接类型，可选值为"main"或"timer"，默认为"main"
+            type (str): 连接类型，可选值为"main"、"timer"或"file"，默认为"main"
         """
-        if type not in ["main", "timer"]:
-            raise ValueError("type参数必须是'main'或'timer'")
+        if type not in ["main", "timer", "file"]:
+            raise ValueError("type参数必须是'main'、'timer'或'file'")
             
         self.type = type
         self.ws = None
