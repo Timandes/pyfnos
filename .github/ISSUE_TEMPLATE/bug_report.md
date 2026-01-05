@@ -2,7 +2,7 @@
 name: Bug反馈
 about: 提交Bug（缺陷）
 title: '【缺陷】 '
-labels: '缺陷'
+labels: 'bug'
 assignees: ''
 
 ---

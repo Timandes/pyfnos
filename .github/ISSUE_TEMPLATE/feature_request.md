@@ -2,7 +2,7 @@
 name: 新需求
 about: 提出需求和建议
 title: '【需求】 '
-labels: '需求'
+labels: 'enhancement'
 assignees: ''
 
 ---
