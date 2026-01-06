@@ -2,6 +2,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/fnos)](https://pypi.org/project/fnos/)
 [![GitHub](https://img.shields.io/github/license/Timandes/pyfnos)](https://github.com/Timandes/pyfnos)
+[![DeepWiki](https://img.shields.io/badge/deepwiki-Timandes/pyfnos-blue)](https://deepwiki.com/Timandes/pyfnos)
 
 飞牛fnOS的Python SDK。
 
