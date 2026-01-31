@@ -251,14 +251,24 @@ class FnosClient:
                     self.connect_future.set_result(True)
                 # 发送第二个请求
                 await self._send_second_request()
-            elif "data" in data and "hostName" in data["data"]:
-                # 这是第二个请求的响应（获取主机名）
-                self.host_name = data["data"]["hostName"]
-                self.trim_version = data["data"]["trimVersion"]
-                logger.debug(f"主机名: {self.host_name}")
-                logger.debug(f"Trim版本: {data['data']['trimVersion']}")
-                # 启动心跳机制
-                await self._start_heartbeat()
+            elif "reqid" in data and data.get("req") == "appcgi.sysinfo.getHostName" and data.get("result") == "succ":
+                # 先检查是否是待处理请求
+                reqid = data["reqid"]
+                if reqid in self.pending_requests:
+                    req_data = self.pending_requests[reqid]
+                    del self.pending_requests[reqid]
+                    if not req_data['future'].done():
+                        req_data['future'].set_result(data)
+                    logger.debug(f"收到getHostName请求的响应: {reqid}")
+                else:
+                    # 如果不是待处理请求，保存主机名信息并启动心跳
+                    if "data" in data and "hostName" in data["data"]:
+                        self.host_name = data["data"]["hostName"]
+                        self.trim_version = data["data"]["trimVersion"]
+                        logger.debug(f"主机名: {self.host_name}")
+                        logger.debug(f"Trim版本: {data['data']['trimVersion']}")
+                        # 启动心跳机制
+                        await self._start_heartbeat()
             elif "res" in data and data["res"] == "pong":
                 # 这是心跳响应
                 logger.debug("收到心跳响应: pong")
