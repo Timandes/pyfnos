@@ -39,6 +39,9 @@ async def main():
     client.on_message(on_message_handler)
 
     # 连接到服务器（必须指定endpoint）
+    # 兼容 "IP:PORT", "ws://IP:PORT", "wss://IP:PORT" 格式
+    # 对于 IP:PORT，会自动探测是否强制 HTTPS/WSS 并跟随端口
+    # 如果是自签证书，需传入 ssl_verify=False
     await client.connect(args.endpoint)
 
     # 登录
@@ -152,3 +155,4 @@ uv run examples/user.py --user myuser --password mypassword -e my-server.com:566
 | `user.py` | 演示User模块的各种功能（获取用户信息、用户组等） |
 | `network.py` | 演示如何获取网络信息（支持type参数，可选值为0和1）和检测网络接口（支持ifName参数） |
 | `file.py` | 演示File模块的各种功能（列出文件、创建文件夹、删除文件/文件夹） |
+| `endpoint_detection.py` | 演示端点自动探测功能及 SSL 验证设置 |
