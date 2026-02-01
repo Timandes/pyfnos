@@ -14,6 +14,7 @@
 
 import asyncio
 import json
+import ssl
 import time
 import uuid
 import base64
@@ -49,7 +50,7 @@ class FnosClient:
         """
         if type not in ["main", "timer", "file"]:
             raise ValueError("type参数必须是'main'、'timer'或'file'")
-            
+
         self.type = type
         self.ws = None
         self.public_key = None
@@ -74,6 +75,8 @@ class FnosClient:
         self.password = None
         self.token = None
         self.long_token = None
+        # 是否验证SSL证书
+        self.ssl_verify = True
 
     def _generate_reqid(self):
         """生成唯一的reqid"""
@@ -172,14 +175,61 @@ class FnosClient:
             logger.error(f"解密登录secret失败: {e}")
             return None
 
-    async def connect(self, endpoint, timeout: float = 3.0):
+    def _detect_endpoint(self, endpoint):
+        """协议与端点自动识别"""
+        scheme = "ws"
+        host_port = endpoint
+
+        if "://" in endpoint:
+            parts = endpoint.split("://", 1)
+            orig_scheme = parts[0].lower()
+            host_port = parts[1]
+            if orig_scheme in ["http", "ws"]:
+                scheme = "ws"
+            elif orig_scheme in ["https", "wss"]:
+                scheme = "wss"
+        else:
+            # 自动探测是否强制 HTTPS
+            try:
+                import urllib.request
+                import ssl
+                from urllib.parse import urlparse
+
+                probe_url = f"http://{host_port}"
+                req = urllib.request.Request(probe_url, method="HEAD")
+                ssl_context = ssl.create_default_context()
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+                with urllib.request.urlopen(req, timeout=2, context=ssl_context) as r:
+                    final_url = r.geturl()
+                    if final_url.startswith("https://"):
+                        scheme = "wss"
+                        host_port = urlparse(final_url).netloc
+            except Exception as e:
+                logger.debug(f"探测端点失败: {e}，使用默认 ws")
+
+        return scheme, host_port
+
+    async def connect(self, endpoint, timeout: float = 3.0, ssl_verify: bool = True):
         """连接到WebSocket服务器"""
         try:
             logger.info("正在连接到WebSocket服务器...")
+            # 自动识别协议和跳转后的主机端口
+            scheme, host_port = self._detect_endpoint(endpoint)
             # 保存endpoint用于重连
-            self.endpoint = endpoint
+            self.endpoint = f"{scheme}://{host_port}"
+
+            # SSL 配置
+            ssl_context = None
+            if scheme == "wss" and not ssl_verify:
+                logger.debug("Disabling SSL certificate verification...")
+                self.ssl_verify = ssl_verify
+                ssl_context = ssl.create_default_context()
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+
             # 创建WebSocket连接，使用构造函数设置的type参数
-            self.ws = await websockets.connect(f"ws://{endpoint}/websocket?type={self.type}")
+            self.ws = await websockets.connect(f"{self.endpoint}/websocket?type={self.type}", ssl=ssl_context)
             logger.debug("websockets.connect returned")
 
             logger.debug("Creating async message handler...")
@@ -516,7 +566,7 @@ class FnosClient:
         logger.info("开始重连...")
 
         # 先连接（connect方法现在会等待连接完成）
-        await self.connect(self.endpoint, timeout=connect_timeout)
+        await self.connect(self.endpoint, timeout=connect_timeout, ssl_verify=self.ssl_verify)
 
         # 再登录
         login_result = await self.login(self.username, self.password, timeout=login_timeout)
