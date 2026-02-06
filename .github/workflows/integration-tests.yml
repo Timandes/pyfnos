@@ -1,0 +1,81 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Clone fnos-mock-server
+        run: |
+          git clone https://github.com/Timandes/fnos-mock-server.git ../fnos-mock-server
+
+      - name: Install mock server dependencies
+        working-directory: ../fnos-mock-server
+        run: |
+          uv sync
+
+      - name: Start mock server
+        working-directory: ../fnos-mock-server
+        run: |
+          uv run python -m server.main > /tmp/mock-server.log 2>&1 &
+          echo $! > /tmp/mock-server.pid
+          echo "Mock server started with PID: $(cat /tmp/mock-server.pid)"
+
+      - name: Wait for mock server to be ready
+        run: |
+          for i in {1..30}; do
+            if nc -z localhost 5666; then
+              echo "Mock server is ready on port 5666"
+              break
+            fi
+            echo "Waiting for mock server... ($i/30)"
+            sleep 1
+          done
+
+      - name: Install project dependencies
+        run: |
+          uv sync --dev
+
+      - name: Run integration tests
+        run: |
+          uv run pytest -m integration -v
+
+      - name: Run all tests
+        run: |
+          uv run pytest -v
+
+      - name: Stop mock server
+        if: always()
+        run: |
+          if [ -f /tmp/mock-server.pid ]; then
+            kill $(cat /tmp/mock-server.pid) || true
+            rm /tmp/mock-server.pid
+            echo "Mock server stopped"
+          fi
+
+      - name: Show mock server logs
+        if: always()
+        run: |
+          if [ -f /tmp/mock-server.log ]; then
+            echo "=== Mock Server Logs ==="
+            cat /tmp/mock-server.log
+          fi

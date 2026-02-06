@@ -12,15 +12,15 @@ class TestFnosClient(unittest.TestCase):
         client = FnosClient()
         reqid1 = client._generate_reqid()
         reqid2 = client._generate_reqid()
-        
+
         # 检查reqid是否为字符串
         self.assertIsInstance(reqid1, str)
         self.assertIsInstance(reqid2, str)
-        
-        # 检查reqid长度是否正确（32位）
-        self.assertEqual(len(reqid1), 32)
-        self.assertEqual(len(reqid2), 32)
-        
+
+        # 检查reqid长度是否正确（25位：13位时间戳 + 12位随机字符串）
+        self.assertEqual(len(reqid1), 25)
+        self.assertEqual(len(reqid2), 25)
+
         # 检查两次生成的reqid是否不同
         self.assertNotEqual(reqid1, reqid2)
     
