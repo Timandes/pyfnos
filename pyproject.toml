@@ -24,6 +24,8 @@ include = ["fnos*"]
 [dependency-groups]
 dev = [
     "twine>=6.2.0",
+    "pytest>=9.0.0",
+    "pytest-asyncio>=1.3.0",
 ]
 
 [tool.pytest.ini_options]
