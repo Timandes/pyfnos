@@ -9,9 +9,10 @@ wheels/
 # Virtual environments
 .venv
 
-# Test files
-test_*.py
-*_test.py
+# Test files (exclude from root, but include in tests/ directory)
+/test_*.py
+/*_test.py
+!tests/
 
 
 PROMPTS.txt
