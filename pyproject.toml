@@ -32,3 +32,7 @@ dev = [
 markers = [
     "integration: marks tests as integration tests (require external dependencies like running fnOS service)",
 ]
+testpaths = ["tests", "."]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
