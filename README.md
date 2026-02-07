@@ -117,10 +117,10 @@ if __name__ == "__main__":
 | File | `remove` | 删除文件或文件夹 |
 | File | `get_acl` | 获取文件的ACL（访问控制列表）信息 |
 | DockerManager | `__init__` | 初始化DockerManager类 |
-| DockerManager | `compose_list` | 获取Docker Compose项目列表 |
-| DockerManager | `container_list` | 获取容器列表（支持all参数，默认为True） |
+| DockerManager | `list_composes` | 获取Docker Compose项目列表 |
+| DockerManager | `list_containers` | 获取容器列表（支持all参数，默认为True） |
 | DockerManager | `stats` | 获取容器统计信息 |
-| DockerManager | `system_setting_get` | 获取Docker系统设置 |
+| DockerManager | `get_system_settings` | 获取Docker系统设置 |
 | EventLogger | `__init__` | 初始化EventLogger类 |
 | EventLogger | `common_list` | 获取事件日志列表 |
 | Share | `__init__` | 初始化Share类 |

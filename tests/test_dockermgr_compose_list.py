@@ -22,8 +22,8 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.mark.asyncio
-async def test_dockermgr_compose_list():
-    """测试 DockerManager.compose_list() 方法的集成测试
+async def test_dockermgr_list_composes():
+    """测试 DockerManager.list_composes() 方法的集成测试
 
     此测试需要：
     1. fnOS 服务运行在 127.0.0.1:5666
@@ -50,7 +50,7 @@ async def test_dockermgr_compose_list():
         docker_mgr = DockerManager(client)
 
         # 获取 Docker Compose 项目列表
-        compose_list_result = await docker_mgr.compose_list()
+        compose_list_result = await docker_mgr.list_composes()
 
         # 验证响应格式
         assert compose_list_result.get("result") == "succ", "响应结果不是成功"

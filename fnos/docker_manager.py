@@ -29,7 +29,7 @@ class DockerManager:
         """
         self.client = client
     
-    async def compose_list(self, timeout: float = 10.0) -> dict:
+    async def list_composes(self, timeout: float = 10.0) -> dict:
         """
         获取Docker Compose项目列表
         
@@ -60,7 +60,7 @@ class DockerManager:
         response = await self.client.request_payload_with_response("appcgi.dockermgr.composeList", {}, timeout)
         return response
     
-    async def container_list(self, all: bool = True, timeout: float = 10.0) -> dict:
+    async def list_containers(self, all: bool = True, timeout: float = 10.0) -> dict:
         """
         获取容器列表
         
@@ -137,7 +137,7 @@ class DockerManager:
         response = await self.client.request_payload_with_response("appcgi.dockermgr.stats", {}, timeout)
         return response
     
-    async def system_setting_get(self, timeout: float = 10.0) -> dict:
+    async def get_system_settings(self, timeout: float = 10.0) -> dict:
         """
         获取Docker系统设置
         

@@ -22,8 +22,8 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.mark.asyncio
-async def test_dockermgr_container_list():
-    """测试 DockerManager.container_list() 方法的集成测试
+async def test_dockermgr_list_containers():
+    """测试 DockerManager.list_containers() 方法的集成测试
 
     此测试需要：
     1. fnOS 服务运行在 127.0.0.1:5666
@@ -50,7 +50,7 @@ async def test_dockermgr_container_list():
         docker_mgr = DockerManager(client)
 
         # 获取容器列表（包含所有容器）
-        container_list_result = await docker_mgr.container_list(all=True)
+        container_list_result = await docker_mgr.list_containers(all=True)
 
         # 验证响应格式
         assert container_list_result.get("result") == "succ", "响应结果不是成功"

@@ -22,8 +22,8 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.mark.asyncio
-async def test_dockermgr_system_setting_get():
-    """测试 DockerManager.system_setting_get() 方法的集成测试
+async def test_dockermgr_get_system_settings():
+    """测试 DockerManager.get_system_settings() 方法的集成测试
 
     此测试需要：
     1. fnOS 服务运行在 127.0.0.1:5666
@@ -50,7 +50,7 @@ async def test_dockermgr_system_setting_get():
         docker_mgr = DockerManager(client)
 
         # 获取 Docker 系统设置
-        system_setting_result = await docker_mgr.system_setting_get()
+        system_setting_result = await docker_mgr.get_system_settings()
 
         # 验证响应格式
         assert system_setting_result.get("result") == "succ", "响应结果不是成功"

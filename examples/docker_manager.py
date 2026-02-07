@@ -31,7 +31,7 @@ async def main():
 
         # 1. 获取 Docker Compose 项目列表
         print("\n=== Docker Compose 项目列表 ===")
-        compose_list = await docker_mgr.compose_list()
+        compose_list = await docker_mgr.list_composes()
         if compose_list.get("result") == "succ":
             for project in compose_list["rsp"]:
                 print(f"项目名称: {project['Name']}")
@@ -42,7 +42,7 @@ async def main():
 
         # 2. 获取容器列表（包含所有容器）
         print("\n=== 容器列表 ===")
-        container_list = await docker_mgr.container_list(all=True)
+        container_list = await docker_mgr.list_containers(all=True)
         if container_list.get("result") == "succ":
             for container in container_list["rsp"]:
                 print(f"容器名称: {container['Names'][0]}")
@@ -65,7 +65,7 @@ async def main():
 
         # 4. 获取 Docker 系统设置
         print("\n=== Docker 系统设置 ===")
-        system_setting = await docker_mgr.system_setting_get()
+        system_setting = await docker_mgr.get_system_settings()
         if system_setting.get("result") == "succ":
             settings = system_setting["rsp"]
             print(f"数据根目录: {settings['dataRoot']}")

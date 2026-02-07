@@ -11,10 +11,10 @@
 
 ### Added
 - 新增 `DockerManager` 类，支持管理 Docker 容器和项目
-  - `compose_list()`: 获取 Docker Compose 项目列表
-  - `container_list(all=True)`: 获取容器列表
+  - `list_composes()`: 获取 Docker Compose 项目列表
+  - `list_containers(all=True)`: 获取容器列表
   - `stats()`: 获取容器统计信息
-  - `system_setting_get()`: 获取 Docker 系统设置
+  - `get_system_settings()`: 获取 Docker 系统设置
 - 新增 `EventLogger` 类，支持获取事件日志
   - `common_list()`: 获取事件日志列表
 - 新增 `Share` 类，支持获取共享配置信息
