@@ -132,3 +132,67 @@ class File:
         # 使用FnoClient的新方法发送请求并等待响应
         response = await self.client.request_payload_with_response("file.rm", payload, timeout)
         return response
+    
+    async def get_acl(self, files: list, timeout: float = 10.0) -> dict:
+        """
+        获取文件的ACL（访问控制列表）信息
+        
+        Args:
+            files: 需要查询ACL的文件路径列表，格式为vol{stor_id}/{path}
+            timeout: 请求超时时间（秒），默认为10.0秒
+            
+        Returns:
+            dict: 包含文件ACL信息的服务器返回结果
+            示例:
+            {
+              "data": [
+                {
+                  "defaultPermset": [
+                    {
+                      "owner": 6
+                    },
+                    {
+                      "group": 0
+                    },
+                    {
+                      "gid": 1001,
+                      "perm": 6
+                    },
+                    {
+                      "other": 1
+                    }
+                  ],
+                  "permset": [
+                    {
+                      "owner": 6
+                    },
+                    {
+                      "group": 0
+                    },
+                    {
+                      "gid": 1001,
+                      "perm": 6
+                    },
+                    {
+                      "other": 1
+                    }
+                  ]
+                }
+              ],
+              "uver": 115993656164352,
+              "result": "succ",
+              "reqid": "reqid"
+            }
+        """
+        # 验证参数
+        if not files or not isinstance(files, list):
+            raise ValueError("files参数必须是非空列表")
+        
+        # 构造请求参数
+        payload = {
+            "files": files
+        }
+        
+        # 使用FnoClient的新方法发送请求并等待响应
+        response = await self.client.request_payload_with_response("file.getAcl", payload, timeout)
+        return response

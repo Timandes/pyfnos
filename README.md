@@ -115,6 +115,18 @@ if __name__ == "__main__":
 | File | `list` | 列出指定目录下的文件和文件夹 |
 | File | `mkdir` | 创建文件夹 |
 | File | `remove` | 删除文件或文件夹 |
+| File | `get_acl` | 获取文件的ACL（访问控制列表）信息 |
+| DockerManager | `__init__` | 初始化DockerManager类 |
+| DockerManager | `compose_list` | 获取Docker Compose项目列表 |
+| DockerManager | `container_list` | 获取容器列表（支持all参数，默认为True） |
+| DockerManager | `stats` | 获取容器统计信息 |
+| DockerManager | `system_setting_get` | 获取Docker系统设置 |
+| EventLogger | `__init__` | 初始化EventLogger类 |
+| EventLogger | `common_list` | 获取事件日志列表 |
+| Share | `__init__` | 初始化Share类 |
+| Share | `smb_opt` | 获取SMB共享配置信息 |
+| Notify | `__init__` | 初始化Notify类 |
+| Notify | `unread_total` | 获取未读通知总数 |
 
 ## 命令行参数
 
@@ -152,3 +164,7 @@ uv run examples/user.py --user myuser --password mypassword -e my-server.com:566
 | `user.py` | 演示User模块的各种功能（获取用户信息、用户组等） |
 | `network.py` | 演示如何获取网络信息（支持type参数，可选值为0和1）和检测网络接口（支持ifName参数） |
 | `file.py` | 演示File模块的各种功能（列出文件、创建文件夹、删除文件/文件夹） |
+| `docker_manager.py` | 演示DockerManager模块的各种功能（Docker Compose项目、容器、统计信息、系统设置） |
+| `event_logger.py` | 演示EventLogger模块的功能（获取事件日志） |
+| `share.py` | 演示Share模块的功能（获取SMB共享配置信息） |
+| `notify.py` | 演示Notify模块的功能（获取未读通知数） |

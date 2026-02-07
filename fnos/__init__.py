@@ -25,7 +25,11 @@ from .system_info import SystemInfo
 from .user import User
 from .network import Network
 from .file import File
+from .docker_manager import DockerManager
+from .event_logger import EventLogger
+from .share import Share
+from .notify import Notify
 
-__version__ = "0.10.1"
+__version__ = "0.11.0"
 
-__all__ = ["FnosClient", "Store", "ResourceMonitor", "SAC", "SystemInfo", "User", "Network", "File"]
+__all__ = ["FnosClient", "Store", "ResourceMonitor", "SAC", "SystemInfo", "User", "Network", "File", "DockerManager", "EventLogger", "Share", "Notify"]

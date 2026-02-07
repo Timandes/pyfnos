@@ -7,6 +7,25 @@
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-02-07
+
+### Added
+- 新增 `DockerManager` 类，支持管理 Docker 容器和项目
+  - `compose_list()`: 获取 Docker Compose 项目列表
+  - `container_list(all=True)`: 获取容器列表
+  - `stats()`: 获取容器统计信息
+  - `system_setting_get()`: 获取 Docker 系统设置
+- 新增 `EventLogger` 类，支持获取事件日志
+  - `common_list()`: 获取事件日志列表
+- 新增 `Share` 类，支持获取共享配置信息
+  - `smb_opt()`: 获取 SMB 共享配置信息
+- 新增 `Notify` 类，支持获取通知信息
+  - `unread_total()`: 获取未读通知总数
+- 扩展 `File` 类，新增方法
+  - `get_acl(files)`: 获取文件的 ACL（访问控制列表）信息
+- 扩展 `Store` 类，新增方法
+  - `get_user_storage(space_info, stor_info, quota_info)`: 获取用户存储信息
+
 ## [0.10.1] - 2026-01-31
 
 ### Fixed

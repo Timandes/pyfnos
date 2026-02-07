@@ -109,3 +109,46 @@ class Store:
         
         response = await self.client.request_payload_with_response("stor.state", payload, timeout)
         return response
+    
+    async def get_user_storage(self, space_info: bool = False, stor_info: bool = False, 
+                               quota_info: bool = False, timeout: float = 10.0) -> dict:
+        """
+        获取用户存储信息
+        
+        Args:
+            space_info: 是否返回空间信息，默认为False
+            stor_info: 是否返回存储信息，默认为False
+            quota_info: 是否返回配额信息，默认为False
+            timeout: 请求超时时间（秒），默认为10.0秒
+            
+        Returns:
+            dict: 包含用户存储信息的服务器返回结果
+            示例:
+            {
+              "stor": [
+                {
+                  "id": 1,
+                  "comment": "",
+                  "frsize": 17979408384,
+                  "fssize": 50429558784,
+                  "level": "basic",
+                  "fstype": "ext4",
+                  "diskType": "SSD",
+                  "quotaCurr": 65536,
+                  "quotaMax": 1048576
+                }
+              ],
+              "uid": 1002,
+              "result": "succ",
+              "reqid": "reqid"
+            }
+        """
+        # 构造请求参数
+        payload = {
+            "spaceInfo": space_info,
+            "storInfo": stor_info,
+            "quotaInfo": quota_info
+        }
+        
+        response = await self.client.request_payload_with_response("stor.getUserStorage", payload, timeout)
+        return response
