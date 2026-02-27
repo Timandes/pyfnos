@@ -7,6 +7,12 @@
 
 ## [Unreleased]
 
+### Added
+- `FnosClient.connect()` 新增 SSL/WSS 连接支持
+  - `use_ssl` 参数：是否使用 WSS 协议连接（默认 False）
+  - `skip_ssl_verify` 参数：是否跳过 SSL 证书验证（默认 True，便于自签名证书场景）
+  - 支持 endpoint 带协议前缀（`wss://` 或 `ws://`），前缀优先于 `use_ssl` 参数
+
 ## [0.11.0] - 2026-02-15
 
 ### Added

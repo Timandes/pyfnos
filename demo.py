@@ -27,6 +27,8 @@ async def main():
     parser.add_argument('--user', type=str, required=True, help='用户名')
     parser.add_argument('--password', type=str, required=True, help='密码')
     parser.add_argument('-e', '--endpoint', type=str, default='your-custom-endpoint.com:5666', help='服务器地址 (默认: your-custom-endpoint.com:5666)')
+    parser.add_argument('--use-ssl', action='store_true', help='使用 SSL/WSS 连接')
+    parser.add_argument('--skip-ssl-verify', type=lambda x: x.lower() == 'true', default=True, help='跳过 SSL 证书验证 (默认: True)')
     
     args = parser.parse_args()
     
@@ -36,7 +38,7 @@ async def main():
     client.on_message(on_message_handler)
     
     # 连接到服务器（必须指定endpoint）
-    await client.connect(args.endpoint)
+    await client.connect(args.endpoint, use_ssl=args.use_ssl, skip_ssl_verify=args.skip_ssl_verify)
     
     if client.connected:
         print("连接成功，尝试登录...")

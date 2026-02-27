@@ -21,6 +21,7 @@ import random
 import hashlib
 import hmac
 import logging
+import ssl
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_v1_5
 from Crypto.Random import get_random_bytes
@@ -74,6 +75,9 @@ class FnosClient:
         self.password = None
         self.token = None
         self.long_token = None
+        # SSL 配置
+        self.use_ssl = False
+        self.skip_ssl_verify = True
 
     def _generate_reqid(self):
         """生成唯一的reqid"""
@@ -91,6 +95,21 @@ class FnosClient:
         e = base64.b32encode(str(random.random()).encode()).decode()[:15]
         n = base64.b32encode(str(random.random()).encode()).decode()[:15]
         return f"{t}-{e}-{n}".lower().replace('=', '')
+
+    def _parse_endpoint(self, endpoint: str, use_ssl: bool) -> tuple:
+        """
+        解析 endpoint，返回 (host_port, actual_use_ssl)
+        
+        - 如果 endpoint 以 wss:// 开头，返回去掉前缀的地址和 True
+        - 如果 endpoint 以 ws:// 开头，返回去掉前缀的地址和 False
+        - 否则返回原地址和 use_ssl 参数值
+        """
+        if endpoint.startswith("wss://"):
+            return endpoint[6:], True
+        elif endpoint.startswith("ws://"):
+            return endpoint[5:], False
+        else:
+            return endpoint, use_ssl
 
     def _encrypt_login_data(self, username, password):
         """加密登录数据"""
@@ -172,14 +191,39 @@ class FnosClient:
             logger.error(f"解密登录secret失败: {e}")
             return None
 
-    async def connect(self, endpoint, timeout: float = 3.0):
-        """连接到WebSocket服务器"""
+    async def connect(self, endpoint, timeout: float = 3.0, use_ssl: bool = False, skip_ssl_verify: bool = True):
+        """连接到WebSocket服务器
+        
+        Args:
+            endpoint: 服务器地址，可以是 "host:port" 格式或带协议前缀 "ws://host:port" / "wss://host:port"
+            timeout: 连接超时时间（秒）
+            use_ssl: 是否使用 SSL/WSS 连接（默认 False）
+            skip_ssl_verify: 是否跳过 SSL 证书验证（默认 True）
+        """
         try:
             logger.info("正在连接到WebSocket服务器...")
-            # 保存endpoint用于重连
-            self.endpoint = endpoint
-            # 创建WebSocket连接，使用构造函数设置的type参数
-            self.ws = await websockets.connect(f"ws://{endpoint}/websocket?type={self.type}")
+            # 解析 endpoint，处理协议前缀
+            parsed_endpoint, actual_use_ssl = self._parse_endpoint(endpoint, use_ssl)
+            
+            # 保存连接信息用于重连
+            self.endpoint = parsed_endpoint
+            self.use_ssl = actual_use_ssl
+            self.skip_ssl_verify = skip_ssl_verify
+            
+            # 根据 use_ssl 选择协议
+            protocol = "wss" if actual_use_ssl else "ws"
+            uri = f"{protocol}://{parsed_endpoint}/websocket?type={self.type}"
+            
+            # 配置 SSL 上下文
+            ssl_context = None
+            if actual_use_ssl:
+                ssl_context = ssl.create_default_context()
+                if skip_ssl_verify:
+                    ssl_context.check_hostname = False
+                    ssl_context.verify_mode = ssl.CERT_NONE
+            
+            # 创建WebSocket连接
+            self.ws = await websockets.connect(uri, ssl=ssl_context)
             logger.debug("websockets.connect returned")
 
             logger.debug("Creating async message handler...")

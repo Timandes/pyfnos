@@ -30,6 +30,8 @@ async def main():
     parser.add_argument('--user', type=str, required=True, help='用户名')
     parser.add_argument('--password', type=str, required=True, help='密码')
     parser.add_argument('-e', '--endpoint', type=str, default='your-custom-endpoint.com:5666', help='服务器地址 (默认: your-custom-endpoint.com:5666)')
+    parser.add_argument('--use-ssl', action='store_true', help='使用 SSL/WSS 连接')
+    parser.add_argument('--skip-ssl-verify', type=lambda x: x.lower() == 'true', default=True, help='跳过 SSL 证书验证 (默认: True)')
 
     args = parser.parse_args()
 
@@ -39,7 +41,8 @@ async def main():
     client.on_message(on_message_handler)
 
     # 连接到服务器（必须指定endpoint）
-    await client.connect(args.endpoint)
+    # 可选参数：use_ssl=True 使用 WSS 连接，skip_ssl_verify=False 验证证书
+    await client.connect(args.endpoint, use_ssl=args.use_ssl, skip_ssl_verify=args.skip_ssl_verify)
 
     # 登录
     result = await client.login(args.user, args.password)
@@ -54,7 +57,7 @@ async def main():
     # 演示重连功能（手动方式）
     await client.close()  # 先关闭连接
     print("连接已关闭，尝试重连...")
-    await client.connect(args.endpoint)  # 重新连接（现在会等待连接完成）
+    await client.connect(args.endpoint, use_ssl=args.use_ssl, skip_ssl_verify=args.skip_ssl_verify)  # 重新连接（现在会等待连接完成）
     result = await client.login(args.user, args.password)  # 重新登录
     print("重连登录结果:", result)
 
@@ -74,7 +77,7 @@ if __name__ == "__main__":
 | 类名 | 方法名 | 简介 |
 | ---- | ---- | ---- |
 | FnosClient | `__init__` | 初始化客户端，支持type参数（"main"、"timer"或"file"，默认为"main"） |
-| FnosClient | `connect` | 连接到WebSocket服务器（必填参数：endpoint） |
+| FnosClient | `connect` | 连接到WebSocket服务器（必填参数：endpoint；可选参数：use_ssl、skip_ssl_verify） |
 | FnosClient | `login` | 用户登录方法 |
 | FnosClient | `get_decrypted_secret` | 获取解密后的secret |
 | FnosClient | `on_message` | 设置消息回调函数 |
@@ -135,6 +138,9 @@ if __name__ == "__main__":
 - `--user`: 用户名（必填）
 - `--password`: 密码（必填）
 - `-e, --endpoint`: 服务器地址（可选，默认为 your-custom-endpoint.com:5666）
+  - 支持协议前缀：`wss://host:port` 或 `ws://host:port`
+- `--use-ssl`: 使用 SSL/WSS 连接（可选，默认不使用）
+- `--skip-ssl-verify`: 跳过 SSL 证书验证（可选，默认为 True）
 
 ## 运行示例
 
@@ -168,3 +174,18 @@ uv run examples/user.py --user myuser --password mypassword -e my-server.com:566
 | `event_logger.py` | 演示EventLogger模块的功能（获取事件日志） |
 | `share.py` | 演示Share模块的功能（获取SMB共享配置信息） |
 | `notify.py` | 演示Notify模块的功能（获取未读通知数） |
+
+### SSL/WSS 连接示例
+
+如果服务器使用 HTTPS/WSS 协议，可以通过以下方式连接：
+
+```bash
+# 方式1：使用 wss:// 前缀
+uv run examples/user.py --user myuser --password mypassword -e wss://my-server.com:5667
+
+# 方式2：使用 --use-ssl 参数
+uv run examples/user.py --user myuser --password mypassword -e my-server.com:5667 --use-ssl
+
+# 禁用证书验证跳过（验证服务器证书）
+uv run examples/user.py --user myuser --password mypassword -e wss://my-server.com:5667 --skip-ssl-verify false
+```
