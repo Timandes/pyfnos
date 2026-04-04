@@ -29,7 +29,8 @@ from .docker_manager import DockerManager
 from .event_logger import EventLogger
 from .share import Share
 from .notify import Notify
+from .iscsi_manager import IscsiManager
 
 __version__ = "0.11.0"
 
-__all__ = ["FnosClient", "Store", "ResourceMonitor", "SAC", "SystemInfo", "User", "Network", "File", "DockerManager", "EventLogger", "Share", "Notify"]
+__all__ = ["FnosClient", "Store", "ResourceMonitor", "SAC", "SystemInfo", "User", "Network", "File", "DockerManager", "EventLogger", "Share", "Notify", "IscsiManager"]

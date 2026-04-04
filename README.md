@@ -130,6 +130,12 @@ if __name__ == "__main__":
 | Share | `smb_opt` | 获取SMB共享配置信息 |
 | Notify | `__init__` | 初始化Notify类 |
 | Notify | `unread_total` | 获取未读通知总数 |
+| IscsiManager | `__init__` | 初始化IscsiManager类 |
+| IscsiManager | `get_config` | 获取 iSCSI 配置信息 |
+| IscsiManager | `list_initiators` | 获取 Initiator 列表 |
+| IscsiManager | `list_luns` | 获取 LUN 列表 |
+| IscsiManager | `list_lun_usergroups` | 获取 LUN 用户组列表 |
+| IscsiManager | `list_targets` | 获取 Target 列表 |
 
 ## 命令行参数
 
@@ -174,6 +180,7 @@ uv run examples/user.py --user myuser --password mypassword -e my-server.com:566
 | `event_logger.py` | 演示EventLogger模块的功能（获取事件日志） |
 | `share.py` | 演示Share模块的功能（获取SMB共享配置信息） |
 | `notify.py` | 演示Notify模块的功能（获取未读通知数） |
+| `iscsi_manager.py` | 演示IscsiManager模块的功能（获取iSCSI配置、Initiator、LUN、用户组、Target） |
 
 ### SSL/WSS 连接示例
 

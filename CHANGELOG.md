@@ -8,6 +8,12 @@
 ## [Unreleased]
 
 ### Added
+- 新增 `IscsiManager` 类，支持管理 iSCSI 配置和资源
+  - `get_config()`: 获取 iSCSI 配置信息
+  - `list_initiators()`: 获取 Initiator 列表
+  - `list_luns()`: 获取 LUN 列表
+  - `list_lun_usergroups()`: 获取 LUN 用户组列表
+  - `list_targets()`: 获取 Target 列表
 - `FnosClient.connect()` 新增 SSL/WSS 连接支持
   - `use_ssl` 参数：是否使用 WSS 协议连接（默认 False）
   - `skip_ssl_verify` 参数：是否跳过 SSL 证书验证（默认 True，便于自签名证书场景）
