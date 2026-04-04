@@ -134,7 +134,7 @@ if __name__ == "__main__":
 | IscsiManager | `get_config` | 获取 iSCSI 配置信息 |
 | IscsiManager | `list_initiators` | 获取 Initiator 列表 |
 | IscsiManager | `list_luns` | 获取 LUN 列表 |
-| IscsiManager | `list_lun_usergroups` | 获取 LUN 用户组列表 |
+| IscsiManager | `list_lun_usergroups` | 获取 LUN 用户组列表（支持lunName和wwn参数） |
 | IscsiManager | `list_targets` | 获取 Target 列表 |
 
 ## 命令行参数
