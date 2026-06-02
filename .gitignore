@@ -8,6 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
+.worktrees/
 
 # Test files (exclude from root, but include in tests/ directory)
 /test_*.py
@@ -16,4 +17,3 @@ wheels/
 
 
 PROMPTS.txt
-
