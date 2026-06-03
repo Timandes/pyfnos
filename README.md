@@ -93,6 +93,12 @@ if result.get("twofaSetupRequired"):
 
 只有最终响应中包含 `token` 和 `secret` 后，SDK 才会保存登录态并允许后续 API 请求。`trust_device=True` 会请求服务器信任当前设备，后续是否免验证码由 fnOS 服务端决定。
 
+也可以直接运行两步验证示例：
+
+```bash
+uv run examples/twofa_login.py --user myuser --password mypassword -e my-server.com:5666
+```
+
 ## 参考
 
 | 类名 | 方法名 | 简介 |
@@ -196,6 +202,7 @@ uv run examples/user.py --user myuser --password mypassword -e my-server.com:566
 | `store.py` | 演示如何获取存储相关信息 |
 | `system_info.py` | 演示如何获取系统信息（主机名、版本、硬件等） |
 | `user.py` | 演示User模块的各种功能（获取用户信息、用户组等） |
+| `twofa_login.py` | 演示如何处理两步验证登录流程 |
 | `network.py` | 演示如何获取网络信息（支持type参数，可选值为0和1）和检测网络接口（支持ifName参数） |
 | `file.py` | 演示File模块的各种功能（列出文件、创建文件夹、删除文件/文件夹） |
 | `docker_manager.py` | 演示DockerManager模块的各种功能（Docker Compose项目、容器、统计信息、系统设置） |
