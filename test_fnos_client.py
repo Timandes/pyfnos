@@ -330,6 +330,38 @@ class TestFnosClient(unittest.TestCase):
 
         asyncio.run(run_test())
 
+    def test_process_message_routes_successful_twofa_response_to_twofa_future(self):
+        """2FA成功响应应完成twofa_future并保存登录凭据"""
+        import asyncio
+        import json
+
+        async def run_test():
+            client = FnosClient()
+            client._decrypt_login_secret = lambda encrypted_secret: "decrypted-secret"
+            future = asyncio.Future()
+            client.twofa_future = future
+            client.twofa_reqid = "twofa-reqid"
+            client.twofa_pending = {"accessToken": "access-token"}
+
+            response = {
+                "uid": 1001,
+                "admin": True,
+                "secret": "encrypted-secret",
+                "token": "short-token",
+                "result": "succ",
+                "reqid": "twofa-reqid",
+            }
+
+            await client._process_message(json.dumps(response))
+
+            self.assertTrue(future.done())
+            self.assertEqual(future.result(), response)
+            self.assertEqual(client.decrypted_secret, "decrypted-secret")
+            self.assertEqual(client.token, "short-token")
+            self.assertIsNone(client.twofa_pending)
+
+        asyncio.run(run_test())
+
     def test_submit_twofa_code_requires_pending_challenge(self):
         """没有pending 2FA上下文时不能提交验证码"""
         import asyncio

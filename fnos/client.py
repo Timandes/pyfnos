@@ -410,8 +410,13 @@ class FnosClient:
                 # 这是心跳响应
                 logger.debug("收到心跳响应: pong")
             elif self._is_final_login_success(data):
+                twofa_future = self.twofa_future
+                twofa_reqid = self.twofa_reqid
                 self._handle_final_login_success(data)
                 logger.debug(f"服务器返回的secret: {self.decrypted_secret}")
+                if twofa_future and twofa_reqid and data.get("reqid") == twofa_reqid:
+                    if not twofa_future.done():
+                        twofa_future.set_result(data)
                 if self.login_future and not self.login_future.done():
                     self.login_future.set_result(self.login_response)
             elif self._is_twofa_challenge(data):
