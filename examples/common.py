@@ -54,8 +54,8 @@ async def login_with_twofa(client, args_or_user, password=None, *, code=None, tr
 
     if result.get("twofaRequired"):
         print(f"账号需要两步验证，安全邮箱: {result.get('secureEmail', '未知')}")
-        code = args.code or getpass.getpass("请输入 6 位两步验证码: ")
-        result = await client.submit_twofa_code(code, trust_device=args.trust_device)
+        code = code or getpass.getpass("请输入 6 位两步验证码: ")
+        result = await client.submit_twofa_code(code, trust_device=trust_device)
     elif result.get("twofaSetupRequired"):
         raise RuntimeError("该账号需要先绑定两步验证后才能继续登录")
 
