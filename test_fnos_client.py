@@ -330,6 +330,96 @@ class TestFnosClient(unittest.TestCase):
 
         asyncio.run(run_test())
 
+    def test_submit_twofa_code_requires_pending_challenge(self):
+        """没有pending 2FA上下文时不能提交验证码"""
+        import asyncio
+
+        async def run_test():
+            client = FnosClient()
+            client.connected = True
+            client.public_key = "public-key"
+            client.session_id = "session-id"
+
+            with self.assertRaises(Exception) as context:
+                await client.submit_twofa_code("583213")
+
+            self.assertIn("没有待完成的两步验证登录", str(context.exception))
+
+        asyncio.run(run_test())
+
+    def test_submit_twofa_code_rejects_non_six_digit_code(self):
+        """验证码必须是6位数字"""
+        import asyncio
+
+        async def run_test():
+            client = FnosClient()
+            client.connected = True
+            client.public_key = "public-key"
+            client.session_id = "session-id"
+            client.twofa_pending = {"accessToken": "access-token"}
+
+            with self.assertRaises(ValueError) as context:
+                await client.submit_twofa_code("abc123")
+
+            self.assertIn("两步验证码必须是6位数字", str(context.exception))
+
+        asyncio.run(run_test())
+
+    def test_submit_twofa_code_builds_login_verify_payload(self):
+        """submit_twofa_code应发送user.2fa.loginVerify payload"""
+        import asyncio
+
+        async def run_test():
+            client = FnosClient()
+            client.connected = True
+            client.public_key = "public-key"
+            client.session_id = "session-id"
+            client.twofa_pending = {
+                "accessToken": "access-token",
+                "username": "alice",
+                "stay": False,
+                "deviceType": "CLI",
+                "deviceName": "pytest-device",
+            }
+            client._generate_reqid = lambda: "twofa-reqid"
+            client._generate_did = lambda: "device-id"
+            captured_payload = {}
+            sent_message = {}
+
+            def fake_encrypt_auth_data(payload):
+                captured_payload.update(payload)
+                return {"req": "encrypted", "payload": payload}
+
+            async def fake_send_message(message):
+                sent_message.update(message)
+                client.twofa_future.set_result({
+                    "result": "fail",
+                    "errno": 135168,
+                    "reqid": "twofa-reqid",
+                })
+
+            client._encrypt_auth_data = fake_encrypt_auth_data
+            client._send_message = fake_send_message
+
+            response = await client.submit_twofa_code("583213", trust_device=True)
+
+            self.assertEqual(response["errno"], 135168)
+            self.assertEqual(sent_message["req"], "encrypted")
+            self.assertEqual(captured_payload["req"], "user.2fa.loginVerify")
+            self.assertEqual(captured_payload["reqid"], "twofa-reqid")
+            self.assertEqual(captured_payload["code"], "583213")
+            self.assertTrue(captured_payload["isTrustedDevice"])
+            self.assertEqual(captured_payload["accessToken"], "access-token")
+            self.assertEqual(captured_payload["stay"], 0)
+            self.assertEqual(captured_payload["deviceName"], "pytest-device")
+            self.assertEqual(captured_payload["deviceType"], "CLI")
+            self.assertEqual(captured_payload["did"], "device-id")
+            self.assertEqual(captured_payload["si"], "session-id")
+            self.assertIsNone(client.twofa_reqid)
+            self.assertIsNone(client.twofa_future)
+
+        asyncio.run(run_test())
+
     def test_gethostname_response_routes_to_correct_future(self):
         """测试getHostName响应应该正确传递给对应的future"""
         import asyncio

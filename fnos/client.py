@@ -18,6 +18,7 @@ import time
 import uuid
 import base64
 import random
+import re
 import hashlib
 import hmac
 import logging
@@ -421,6 +422,16 @@ class FnosClient:
                 self._handle_twofa_setup_challenge(data, self.login_context)
                 if self.login_future and not self.login_future.done():
                     self.login_future.set_result(self.login_response)
+            elif (
+                "result" in data
+                and data["result"] == "fail"
+                and self.twofa_reqid
+                and "reqid" in data
+                and data["reqid"] == self.twofa_reqid
+            ):
+                if self.twofa_future and not self.twofa_future.done():
+                    self.twofa_future.set_result(data)
+                logger.error(f"两步验证失败: {data.get('msg', data.get('errmsg', '未知错误'))}")
             elif "result" in data and data["result"] == "fail" and self.login_reqid and "reqid" in data and data["reqid"] == self.login_reqid:
                 # 登录失败 - 只有reqid匹配登录请求的响应才处理为登录失败
                 self.login_response = data
@@ -543,6 +554,51 @@ class FnosClient:
             # 超时也要清理login_reqid
             self.login_reqid = None
             raise Exception("登录超时")
+
+    async def submit_twofa_code(self, code: str, trust_device: bool = False, timeout: float = 10.0):
+        """提交两步验证码完成登录"""
+        if not self.connected:
+            raise NotConnectedError("未连接到服务器")
+
+        if not self.public_key or not self.session_id:
+            raise Exception("未获取到公钥或会话ID")
+
+        if not self.twofa_pending:
+            raise Exception("没有待完成的两步验证登录")
+
+        if not re.fullmatch(r"\d{6}", code):
+            raise ValueError("两步验证码必须是6位数字")
+
+        reqid = self._generate_reqid()
+        payload = {
+            "reqid": reqid,
+            "code": code,
+            "isTrustedDevice": trust_device,
+            "accessToken": self.twofa_pending["accessToken"],
+            "stay": int(bool(self.twofa_pending.get("stay", True))),
+            "deviceName": self.twofa_pending.get("deviceName", "Mac OS-Safari"),
+            "deviceType": self.twofa_pending.get("deviceType", "Browser"),
+            "did": self._generate_did(),
+            "req": "user.2fa.loginVerify",
+            "si": self.session_id,
+        }
+
+        self.twofa_reqid = reqid
+        self.twofa_future = asyncio.Future()
+
+        encrypted_data = self._encrypt_auth_data(payload)
+        logger.debug(f"Sending 2FA verification request: {encrypted_data}")
+        await self._send_message(encrypted_data)
+
+        try:
+            response = await asyncio.wait_for(self.twofa_future, timeout=timeout)
+            self.twofa_reqid = None
+            self.twofa_future = None
+            return response
+        except asyncio.TimeoutError:
+            self.twofa_reqid = None
+            self.twofa_future = None
+            raise Exception("两步验证超时")
 
     async def login_via_token(self, token, long_token, secret, timeout: float = 10.0):
         """使用token登录方法"""
