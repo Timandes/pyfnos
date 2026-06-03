@@ -15,6 +15,7 @@
 import asyncio
 import argparse
 from fnos import FnosClient, ResourceMonitor
+from common import add_auth_arguments, connect_client, login_with_twofa
 
 def on_message_handler(message):
     """消息回调处理函数"""
@@ -24,9 +25,7 @@ async def main():
     """主函数"""
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='Fnos资源监控通用信息示例')
-    parser.add_argument('--user', type=str, required=True, help='用户名')
-    parser.add_argument('--password', type=str, required=True, help='密码')
-    parser.add_argument('-e', '--endpoint', type=str, default='your-custom-endpoint.com:5666', help='服务器地址 (默认: your-custom-endpoint.com:5666)')
+    add_auth_arguments(parser)
     
     args = parser.parse_args()
     
@@ -36,13 +35,13 @@ async def main():
     client.on_message(on_message_handler)
     
     # 连接到服务器（必须指定endpoint）
-    await client.connect(args.endpoint)
+    await connect_client(client, args)
     
     if client.connected:
         print("连接成功，尝试登录...")
         try:
             # 使用命令行参数中的用户名和密码
-            result = await client.login(args.user, args.password)
+            result = await login_with_twofa(client, args)
             print("登录结果:", result)
             
             # 创建ResourceMonitor实例

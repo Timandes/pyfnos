@@ -15,6 +15,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fnos.client import FnosClient
+from common import add_auth_arguments, connect_client, login_with_twofa
 
 def on_message_handler(message):
     """消息回调处理函数"""
@@ -24,9 +25,7 @@ async def main():
     """主函数"""
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='FnosClient login_via_token 方法验证示例')
-    parser.add_argument('--user', type=str, required=True, help='用户名')
-    parser.add_argument('--password', type=str, required=True, help='密码')
-    parser.add_argument('-e', '--endpoint', type=str, default='your-custom-endpoint.com:5666', help='服务器地址 (默认: your-custom-endpoint.com:5666)')
+    add_auth_arguments(parser)
     
     args = parser.parse_args()
     
@@ -39,12 +38,12 @@ async def main():
     try:
         # 第一步：连接到服务器
         print("第一步：连接到服务器...")
-        await client.connect(args.endpoint)
+        await connect_client(client, args)
         print("✓ 连接已建立")
             
         # 第二步：使用用户名密码登录
         print("\n第二步：使用用户名密码登录...")
-        login_result = await client.login(args.user, args.password)
+        login_result = await login_with_twofa(client, args)
         
         if login_result.get("result") != "succ":
             print(f"✗ 登录失败: {login_result.get('msg', '未知错误')}")
@@ -74,7 +73,7 @@ async def main():
         print("\n第四步：重新连接...")
         client = FnosClient()  # 创建新的客户端实例
         client.on_message(on_message_handler)
-        await client.connect(args.endpoint)
+        await connect_client(client, args)
         print("✓ 连接已建立")
         
         # 第五步：使用token重新登录

@@ -24,12 +24,24 @@ def on_message_handler(message):
     print(f"收到消息: {message}")
 
 
+async def login_with_twofa(client, args):
+    result = await client.login(args.user, args.password)
+    if result.get("twofaRequired"):
+        code = args.code or input("请输入 6 位两步验证码: ")
+        result = await client.submit_twofa_code(code, trust_device=args.trust_device)
+    elif result.get("twofaSetupRequired"):
+        raise RuntimeError("该账号需要先绑定两步验证后才能继续登录")
+    return result
+
+
 async def main():
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='Fnos客户端')
     parser.add_argument('--user', type=str, required=True, help='用户名')
     parser.add_argument('--password', type=str, required=True, help='密码')
     parser.add_argument('-e', '--endpoint', type=str, default='your-custom-endpoint.com:5666', help='服务器地址 (默认: your-custom-endpoint.com:5666)')
+    parser.add_argument('--code', type=str, help='6位两步验证码；不提供时从终端读取')
+    parser.add_argument('--trust-device', action='store_true', help='请求服务器信任当前设备')
     parser.add_argument('--use-ssl', action='store_true', help='使用 SSL/WSS 连接')
     parser.add_argument('--skip-ssl-verify', type=lambda x: x.lower() == 'true', default=True, help='跳过 SSL 证书验证 (默认: True)')
 
@@ -45,7 +57,7 @@ async def main():
     await client.connect(args.endpoint, use_ssl=args.use_ssl, skip_ssl_verify=args.skip_ssl_verify)
 
     # 登录
-    result = await client.login(args.user, args.password)
+    result = await login_with_twofa(client, args)
     print("登录结果:", result)
 
     # 发送请求
@@ -58,11 +70,8 @@ async def main():
     await client.close()  # 先关闭连接
     print("连接已关闭，尝试重连...")
     await client.connect(args.endpoint, use_ssl=args.use_ssl, skip_ssl_verify=args.skip_ssl_verify)  # 重新连接（现在会等待连接完成）
-    result = await client.login(args.user, args.password)  # 重新登录
+    result = await login_with_twofa(client, args)  # 重新登录
     print("重连登录结果:", result)
-
-    # 或者使用内置的重连方法（需要先确保连接已断开）
-    # await client.reconnect()  # 使用内置重连方法
 
     # 关闭连接
     await client.close()
@@ -72,6 +81,28 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+## 两步验证登录
+
+如果账号已开启两步验证，`login()` 会先返回挑战信息，而不是完整登录凭据：
+
+```python
+result = await client.login(user, password)
+
+if result.get("twofaRequired"):
+    result = await client.submit_twofa_code("123456", trust_device=False)
+
+if result.get("twofaSetupRequired"):
+    raise RuntimeError("该账号需要先绑定两步验证后才能继续登录")
+```
+
+只有最终响应中包含 `token` 和 `secret` 后，SDK 才会保存登录态并允许后续 API 请求。`trust_device=True` 会请求服务器信任当前设备，后续是否免验证码由 fnOS 服务端决定。
+
+也可以直接运行两步验证示例：
+
+```bash
+uv run examples/twofa_login.py --user myuser --password mypassword -e my-server.com:5666
+```
+
 ## 参考
 
 | 类名 | 方法名 | 简介 |
@@ -79,6 +110,7 @@ if __name__ == "__main__":
 | FnosClient | `__init__` | 初始化客户端，支持type参数（"main"、"timer"或"file"，默认为"main"） |
 | FnosClient | `connect` | 连接到WebSocket服务器（必填参数：endpoint；可选参数：use_ssl、skip_ssl_verify） |
 | FnosClient | `login` | 用户登录方法 |
+| FnosClient | `submit_twofa_code` | 提交两步验证码完成登录 |
 | FnosClient | `get_decrypted_secret` | 获取解密后的secret |
 | FnosClient | `on_message` | 设置消息回调函数 |
 | FnosClient | `request` | 发送请求 |
@@ -154,7 +186,7 @@ if __name__ == "__main__":
 
 ```bash
 # 基本语法
-uv run examples/<示例文件名>.py --user <用户名> --password <密码> [-e <服务器地址>]
+uv run examples/<示例文件名>.py --user <用户名> --password <密码> [-e <服务器地址>] [--code <验证码>] [--trust-device]
 
 # 示例：运行user.py示例
 uv run examples/user.py --user myuser --password mypassword -e my-server.com:5666
@@ -163,6 +195,8 @@ uv run examples/user.py --user myuser --password mypassword -e my-server.com:566
 ### 示例程序说明
 
 下表列出了 `examples` 目录中各个示例程序的功能说明：
+
+示例中的用户名密码登录已统一支持两步验证。账号需要验证码时，程序会提示输入；也可以通过 `--code 123456` 直接传入验证码。
 
 | 文件名 | 功能说明 |
 | ------ | -------- |
@@ -174,6 +208,7 @@ uv run examples/user.py --user myuser --password mypassword -e my-server.com:566
 | `store.py` | 演示如何获取存储相关信息 |
 | `system_info.py` | 演示如何获取系统信息（主机名、版本、硬件等） |
 | `user.py` | 演示User模块的各种功能（获取用户信息、用户组等） |
+| `twofa_login.py` | 演示如何处理两步验证登录流程 |
 | `network.py` | 演示如何获取网络信息（支持type参数，可选值为0和1）和检测网络接口（支持ifName参数） |
 | `file.py` | 演示File模块的各种功能（列出文件、创建文件夹、删除文件/文件夹） |
 | `docker_manager.py` | 演示DockerManager模块的各种功能（Docker Compose项目、容器、统计信息、系统设置） |

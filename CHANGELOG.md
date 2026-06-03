@@ -5,6 +5,21 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 并且遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.13.0] - 2026-06-03
+
+### Added
+- `FnosClient.login()` 支持识别登录阶段的两步验证挑战
+  - 已绑定两步验证时返回 `twofaRequired=True`
+  - 强制启用但尚未绑定时返回 `twofaSetupRequired=True`
+- 新增 `FnosClient.submit_twofa_code(code, trust_device=False, timeout=10.0)`，用于提交6位验证码完成登录
+- 新增 `examples/twofa_login.py`，演示两步验证登录流程
+- `examples` 目录下的用户名密码登录示例统一支持两步验证验证码提交
+- 新增基于 `fnos-mock-server` 的两步验证登录集成测试
+
+### Changed
+- 最终登录成功判断不再依赖 `longToken` 字段，兼容只返回 `token` 和 `secret` 的响应
+- README 增加两步验证登录说明和示例入口
+
 ## [0.12.0] - 2026-04-04
 
 ### Added

@@ -18,6 +18,7 @@ import time
 import uuid
 import base64
 import random
+import re
 import hashlib
 import hmac
 import logging
@@ -63,6 +64,10 @@ class FnosClient:
         self.login_response = None
         self.login_future = None
         self.login_reqid = None  # 用于保存登录请求的reqid
+        self.twofa_pending = None
+        self.twofa_future = None
+        self.twofa_reqid = None
+        self.login_context = {}
         self.decrypted_secret = None
         self.aes_key = None
         self.iv = None
@@ -111,8 +116,8 @@ class FnosClient:
         else:
             return endpoint, use_ssl
 
-    def _encrypt_login_data(self, username, password):
-        """加密登录数据"""
+    def _encrypt_auth_data(self, payload):
+        """加密登录阶段数据"""
         # 生成随机AES密钥
         self.aes_key = get_random_bytes(32)  # 256位密钥
 
@@ -121,24 +126,8 @@ class FnosClient:
         rsa_cipher = PKCS1_v1_5.new(rsa_key)
         encrypted_aes_key = rsa_cipher.encrypt(self.aes_key)
 
-        # 构造登录数据
-        login_data = {
-            "reqid": self._generate_reqid(),
-            "user": username,
-            "password": password,
-            "stay": True,
-            "deviceType": "Browser",
-            "deviceName": "Mac OS-Safari",
-            "did": self._generate_did(),
-            "req": "user.login",
-            "si": self.session_id
-        }
-
-        # 保存登录请求的reqid
-        self.login_reqid = login_data["reqid"]
-
-        # 使用AES密钥加密登录数据
-        json_data = json.dumps(login_data, separators=(',', ':'))
+        # 使用AES密钥加密登录阶段数据
+        json_data = json.dumps(payload, separators=(',', ':'))
         padded_data = pad(json_data.encode('utf-8'), AES.block_size)
 
         # 生成随机IV并加密
@@ -153,6 +142,32 @@ class FnosClient:
             "rsa": base64.b64encode(encrypted_aes_key).decode('utf-8'),
             "aes": base64.b64encode(encrypted_data).decode('utf-8')
         }
+
+    def _encrypt_login_data(
+        self,
+        username,
+        password,
+        stay=True,
+        device_type="Browser",
+        device_name="Mac OS-Safari",
+    ):
+        """加密登录数据"""
+        # 构造登录数据
+        login_data = {
+            "reqid": self._generate_reqid(),
+            "user": username,
+            "password": password,
+            "stay": stay,
+            "deviceType": device_type,
+            "deviceName": device_name,
+            "did": self._generate_did(),
+            "req": "user.login",
+            "si": self.session_id
+        }
+
+        # 保存登录请求的reqid
+        self.login_reqid = login_data["reqid"]
+        return self._encrypt_auth_data(login_data)
 
     def _decrypt_secret(self, encrypted_secret, aes_key, iv):
         """解密secret字段"""
@@ -190,6 +205,84 @@ class FnosClient:
         except Exception as e:
             logger.error(f"解密登录secret失败: {e}")
             return None
+
+    def _is_final_login_success(self, data):
+        """判断响应是否包含完整登录凭据"""
+        return (
+            data.get("result") == "succ"
+            and "token" in data
+            and "secret" in data
+        )
+
+    def _is_twofa_challenge(self, data):
+        """判断响应是否为已绑定2FA的登录验证码挑战"""
+        return (
+            data.get("result") == "succ"
+            and data.get("isBindTwofaSecret") is True
+            and data.get("isTrustedDevice") is False
+            and bool(data.get("accessToken"))
+            and "token" not in data
+            and "secret" not in data
+        )
+
+    def _is_twofa_setup_challenge(self, data):
+        """判断响应是否为强制2FA但尚未绑定TOTP的挑战"""
+        return (
+            data.get("result") == "succ"
+            and data.get("isTwofaEnforced") is True
+            and data.get("isBindTwofaSecret") is False
+            and bool(data.get("accessToken"))
+            and "token" not in data
+            and "secret" not in data
+        )
+
+    def _clear_twofa_state(self):
+        """清理两步验证临时状态"""
+        self.twofa_pending = None
+        self.twofa_reqid = None
+        self.twofa_future = None
+
+    def _handle_final_login_success(self, data):
+        """保存最终登录响应中的凭据"""
+        self.login_response = data
+        self.decrypted_secret = self._decrypt_login_secret(data["secret"])
+        self.token = data.get("token")
+        self.long_token = data.get("longToken")
+        self._clear_twofa_state()
+        logger.info("登录成功")
+        return data
+
+    def _handle_twofa_challenge(self, data, context):
+        """保存已绑定2FA登录挑战上下文"""
+        self.twofa_pending = {
+            "accessToken": data["accessToken"],
+            "username": context.get("username"),
+            "stay": context.get("stay", True),
+            "deviceType": context.get("deviceType", "Browser"),
+            "deviceName": context.get("deviceName", "Mac OS-Safari"),
+        }
+        self.login_response = {
+            **data,
+            "twofaRequired": True,
+            "twofaSetupRequired": False,
+        }
+        return self.login_response
+
+    def _handle_twofa_setup_challenge(self, data, context):
+        """保存强制2FA绑定挑战上下文"""
+        self.twofa_pending = {
+            "accessToken": data["accessToken"],
+            "username": context.get("username"),
+            "stay": context.get("stay", True),
+            "deviceType": context.get("deviceType", "Browser"),
+            "deviceName": context.get("deviceName", "Mac OS-Safari"),
+        }
+        self.login_response = {
+            **data,
+            "twofaRequired": False,
+            "twofaSetupRequired": True,
+        }
+        return self.login_response
 
     async def connect(self, endpoint, timeout: float = 3.0, use_ssl: bool = False, skip_ssl_verify: bool = True):
         """连接到WebSocket服务器
@@ -316,18 +409,34 @@ class FnosClient:
             elif "res" in data and data["res"] == "pong":
                 # 这是心跳响应
                 logger.debug("收到心跳响应: pong")
-            elif "longToken" in data and "result" in data and data["result"] == "succ":
-                # 这是账号密码登录响应
-                self.login_response = data
-                # 解密secret字段并保存
-                if "secret" in data:
-                    self.decrypted_secret = self._decrypt_login_secret(data["secret"])
-                    self.token = data["token"]
-                    self.long_token = data["longToken"]
-                    logger.debug(f"服务器返回的secret: {self.decrypted_secret}")
+            elif self._is_final_login_success(data):
+                twofa_future = self.twofa_future
+                twofa_reqid = self.twofa_reqid
+                self._handle_final_login_success(data)
+                logger.debug(f"服务器返回的secret: {self.decrypted_secret}")
+                if twofa_future and twofa_reqid and data.get("reqid") == twofa_reqid:
+                    if not twofa_future.done():
+                        twofa_future.set_result(data)
                 if self.login_future and not self.login_future.done():
                     self.login_future.set_result(self.login_response)
-                logger.info("登录成功")
+            elif self._is_twofa_challenge(data):
+                self._handle_twofa_challenge(data, self.login_context)
+                if self.login_future and not self.login_future.done():
+                    self.login_future.set_result(self.login_response)
+            elif self._is_twofa_setup_challenge(data):
+                self._handle_twofa_setup_challenge(data, self.login_context)
+                if self.login_future and not self.login_future.done():
+                    self.login_future.set_result(self.login_response)
+            elif (
+                "result" in data
+                and data["result"] == "fail"
+                and self.twofa_reqid
+                and "reqid" in data
+                and data["reqid"] == self.twofa_reqid
+            ):
+                if self.twofa_future and not self.twofa_future.done():
+                    self.twofa_future.set_result(data)
+                logger.error(f"两步验证失败: {data.get('msg', data.get('errmsg', '未知错误'))}")
             elif "result" in data and data["result"] == "fail" and self.login_reqid and "reqid" in data and data["reqid"] == self.login_reqid:
                 # 登录失败 - 只有reqid匹配登录请求的响应才处理为登录失败
                 self.login_response = data
@@ -400,7 +509,15 @@ class FnosClient:
         # 启动心跳任务
         self.heartbeat_task = asyncio.create_task(heartbeat_worker())
 
-    async def login(self, username, password, timeout: float = 10.0):
+    async def login(
+        self,
+        username,
+        password,
+        timeout: float = 10.0,
+        stay: bool = True,
+        device_type: str = "Browser",
+        device_name: str = "Mac OS-Safari",
+    ):
         """用户登录方法"""
         if not self.connected:
             raise NotConnectedError("未连接到服务器")
@@ -411,9 +528,21 @@ class FnosClient:
         # 保存用户名和密码用于重连
         self.username = username
         self.password = password
+        self.login_context = {
+            "username": username,
+            "stay": stay,
+            "deviceType": device_type,
+            "deviceName": device_name,
+        }
 
         # 加密登录数据
-        encrypted_data = self._encrypt_login_data(username, password)
+        encrypted_data = self._encrypt_login_data(
+            username,
+            password,
+            stay=stay,
+            device_type=device_type,
+            device_name=device_name,
+        )
         logger.debug(f"Sending login request: {encrypted_data}")
 
         # 发送登录请求并等待响应
@@ -430,6 +559,51 @@ class FnosClient:
             # 超时也要清理login_reqid
             self.login_reqid = None
             raise Exception("登录超时")
+
+    async def submit_twofa_code(self, code: str, trust_device: bool = False, timeout: float = 10.0):
+        """提交两步验证码完成登录"""
+        if not self.connected:
+            raise NotConnectedError("未连接到服务器")
+
+        if not self.public_key or not self.session_id:
+            raise Exception("未获取到公钥或会话ID")
+
+        if not self.twofa_pending:
+            raise Exception("没有待完成的两步验证登录")
+
+        if not re.fullmatch(r"\d{6}", code):
+            raise ValueError("两步验证码必须是6位数字")
+
+        reqid = self._generate_reqid()
+        payload = {
+            "reqid": reqid,
+            "code": code,
+            "isTrustedDevice": trust_device,
+            "accessToken": self.twofa_pending["accessToken"],
+            "stay": int(bool(self.twofa_pending.get("stay", True))),
+            "deviceName": self.twofa_pending.get("deviceName", "Mac OS-Safari"),
+            "deviceType": self.twofa_pending.get("deviceType", "Browser"),
+            "did": self._generate_did(),
+            "req": "user.2fa.loginVerify",
+            "si": self.session_id,
+        }
+
+        self.twofa_reqid = reqid
+        self.twofa_future = asyncio.Future()
+
+        encrypted_data = self._encrypt_auth_data(payload)
+        logger.debug(f"Sending 2FA verification request: {encrypted_data}")
+        await self._send_message(encrypted_data)
+
+        try:
+            response = await asyncio.wait_for(self.twofa_future, timeout=timeout)
+            self.twofa_reqid = None
+            self.twofa_future = None
+            return response
+        except asyncio.TimeoutError:
+            self.twofa_reqid = None
+            self.twofa_future = None
+            raise Exception("两步验证超时")
 
     async def login_via_token(self, token, long_token, secret, timeout: float = 10.0):
         """使用token登录方法"""
