@@ -3,7 +3,7 @@
 
 """
 FnosClient重连功能示例
-演示如何使用FnosClient的自动重连功能
+演示如何在断线后重新连接并重新登录
 """
 
 import asyncio
@@ -15,6 +15,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fnos.client import FnosClient
+from common import add_auth_arguments, connect_client, login_with_twofa
 
 def on_message_handler(message):
     """消息回调处理函数"""
@@ -24,9 +25,7 @@ async def main():
     """主函数"""
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='FnosClient重连功能示例')
-    parser.add_argument('--user', type=str, required=True, help='用户名')
-    parser.add_argument('--password', type=str, required=True, help='密码')
-    parser.add_argument('-e', '--endpoint', type=str, default='your-custom-endpoint.com:5666', help='服务器地址 (默认: your-custom-endpoint.com:5666)')
+    add_auth_arguments(parser)
     
     args = parser.parse_args()
     
@@ -39,12 +38,12 @@ async def main():
     try:
         # 连接到服务器
         print("正在连接到服务器...")
-        await client.connect(args.endpoint)
+        await connect_client(client, args)
         
         if client.connected:
             # 登录
             print("正在登录...")
-            login_result = await client.login(args.user, args.password)
+            login_result = await login_with_twofa(client, args)
             
             if login_result and login_result.get("result") == "succ":
                 print("登录成功")
@@ -55,11 +54,14 @@ async def main():
                 
                 # 模拟连接断开
                 print("模拟连接断开...")
-                client.connected = False
+                await client.close()
                 
                 # 尝试重连
                 print("尝试重连...")
-                await client.reconnect()
+                client = FnosClient()
+                client.on_message(on_message_handler)
+                await connect_client(client, args)
+                await login_with_twofa(client, args)
                 print("重连成功")
                 
                 # 继续执行操作

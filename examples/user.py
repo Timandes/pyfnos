@@ -14,6 +14,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fnos import FnosClient, User
+from common import add_auth_arguments, connect_client, login_with_twofa
 
 def on_message_handler(message):
     """消息回调处理函数"""
@@ -23,9 +24,7 @@ async def main():
     """主函数"""
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='Fnos用户模块示例')
-    parser.add_argument('--user', type=str, required=True, help='用户名')
-    parser.add_argument('--password', type=str, required=True, help='密码')
-    parser.add_argument('-e', '--endpoint', type=str, default='your-custom-endpoint.com:5666', help='服务器地址 (默认: your-custom-endpoint.com:5666)')
+    add_auth_arguments(parser)
     
     args = parser.parse_args()
     
@@ -38,12 +37,12 @@ async def main():
     try:
         # 连接到服务器
         print("正在连接到服务器...")
-        await client.connect(args.endpoint)
+        await connect_client(client, args)
         print("连接已建立")
             
         # 登录
         print("正在登录...")
-        login_result = await client.login(args.user, args.password)
+        login_result = await login_with_twofa(client, args)
         
         if login_result.get("result") == "succ":
             print("登录成功")

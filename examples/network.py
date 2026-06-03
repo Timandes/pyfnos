@@ -27,13 +27,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fnos.client import FnosClient
 from fnos.network import Network
+from common import add_auth_arguments, connect_client, login_with_twofa
 
 async def main():
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='Network Example')
-    parser.add_argument('--user', type=str, required=True, help='用户名')
-    parser.add_argument('--password', type=str, required=True, help='密码')
-    parser.add_argument('-e', '--endpoint', type=str, default='localhost:8080', help='服务器地址 (默认: localhost:8080)')
+    add_auth_arguments(parser, default_endpoint='localhost:8080')
     
     args = parser.parse_args()
     
@@ -43,11 +42,11 @@ async def main():
     try:
         # 连接到服务器
         print("正在连接到服务器...")
-        await client.connect(args.endpoint)
+        await connect_client(client, args)
         
         # 登录
         print("正在登录...")
-        login_result = await client.login(args.user, args.password)
+        login_result = await login_with_twofa(client, args)
         if login_result.get("result") != "succ":
             print(f"登录失败: {login_result}")
             return

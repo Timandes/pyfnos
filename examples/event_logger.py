@@ -6,20 +6,31 @@ EventLogger 示例代码
 """
 
 import asyncio
+import argparse
 from fnos import FnosClient, EventLogger
+from common import add_auth_arguments, connect_client, login_with_twofa
 
 
 async def main():
+    parser = argparse.ArgumentParser(description="EventLogger 示例")
+    add_auth_arguments(
+        parser,
+        default_user="admin",
+        default_password="admin",
+        default_endpoint="127.0.0.1:5666",
+    )
+    args = parser.parse_args()
+
     # 创建客户端
     client = FnosClient()
 
     try:
         # 连接到 fnOS 服务
-        await client.connect("127.0.0.1:5666")
+        await connect_client(client, args)
         print("连接成功")
 
         # 登录
-        login_result = await client.login("admin", "admin")
+        login_result = await login_with_twofa(client, args)
         if login_result.get("result") == "succ":
             print("登录成功")
         else:
