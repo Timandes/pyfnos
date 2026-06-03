@@ -46,6 +46,11 @@ async def main():
 
     # 登录
     result = await client.login(args.user, args.password)
+    if result.get("twofaRequired"):
+        code = input("请输入 6 位两步验证码: ")
+        result = await client.submit_twofa_code(code)
+    elif result.get("twofaSetupRequired"):
+        raise RuntimeError("该账号需要先绑定两步验证后才能继续登录")
     print("登录结果:", result)
 
     # 发送请求
@@ -72,6 +77,22 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+## 两步验证登录
+
+如果账号已开启两步验证，`login()` 会先返回挑战信息，而不是完整登录凭据：
+
+```python
+result = await client.login(user, password)
+
+if result.get("twofaRequired"):
+    result = await client.submit_twofa_code("123456", trust_device=False)
+
+if result.get("twofaSetupRequired"):
+    raise RuntimeError("该账号需要先绑定两步验证后才能继续登录")
+```
+
+只有最终响应中包含 `token` 和 `secret` 后，SDK 才会保存登录态并允许后续 API 请求。`trust_device=True` 会请求服务器信任当前设备，后续是否免验证码由 fnOS 服务端决定。
+
 ## 参考
 
 | 类名 | 方法名 | 简介 |
@@ -79,6 +100,7 @@ if __name__ == "__main__":
 | FnosClient | `__init__` | 初始化客户端，支持type参数（"main"、"timer"或"file"，默认为"main"） |
 | FnosClient | `connect` | 连接到WebSocket服务器（必填参数：endpoint；可选参数：use_ssl、skip_ssl_verify） |
 | FnosClient | `login` | 用户登录方法 |
+| FnosClient | `submit_twofa_code` | 提交两步验证码完成登录 |
 | FnosClient | `get_decrypted_secret` | 获取解密后的secret |
 | FnosClient | `on_message` | 设置消息回调函数 |
 | FnosClient | `request` | 发送请求 |
