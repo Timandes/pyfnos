@@ -25,18 +25,26 @@ jobs:
           python-version: '3.11'
 
       - name: Clone fnos-mock-server
+        env:
+          FNOS_MOCK_SERVER_REF: d26b2d21efc2ed1cfffbc09868d3445340ed1acc
         run: |
-          git clone https://github.com/Timandes/fnos-mock-server.git ../fnos-mock-server
+          git init ../fnos-mock-server
+          cd ../fnos-mock-server
+          git remote add origin https://github.com/Timandes/fnos-mock-server.git
+          git fetch --depth 1 origin "$FNOS_MOCK_SERVER_REF"
+          git checkout --detach FETCH_HEAD
 
       - name: Install mock server dependencies
         working-directory: ../fnos-mock-server
         run: |
-          uv sync
+          uv sync --python 3.11
 
       - name: Start mock server
         working-directory: ../fnos-mock-server
+        env:
+          FNOS_MOCK_TWOFA_USERS: twofauser
         run: |
-          uv run python -m server.main > /tmp/mock-server.log 2>&1 &
+          uv run --python 3.11 python -m server.main > /tmp/mock-server.log 2>&1 &
           echo $! > /tmp/mock-server.pid
           echo "Mock server started with PID: $(cat /tmp/mock-server.pid)"
 
@@ -54,6 +62,25 @@ jobs:
       - name: Install project dependencies
         run: |
           uv sync --dev
+
+      - name: Warm up mock server crypto
+        run: |
+          uv run python - <<'PY'
+          import asyncio
+          from fnos import FnosClient
+
+          async def main():
+              client = FnosClient()
+              try:
+                  await client.connect("127.0.0.1:5666")
+                  result = await client.login("admin", "admin", timeout=20.0)
+                  if result.get("result") != "succ":
+                      raise RuntimeError(f"Mock server warm-up login failed: {result}")
+              finally:
+                  await client.close()
+
+          asyncio.run(main())
+          PY
 
       - name: Run integration tests
         run: |
