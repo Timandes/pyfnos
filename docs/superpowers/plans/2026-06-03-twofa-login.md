@@ -28,7 +28,11 @@ This plan also detects the enforced-but-unbound setup state and returns `twofaSe
 - Modify `fnos/client.py`
   - Owns login encryption, WebSocket message routing, login state, 2FA pending state, final credential handling, and the new public `submit_twofa_code()` API.
 - Modify `test_fnos_client.py`
-  - Existing offline unit test file for `FnosClient`; add 2FA helper, routing, and payload tests here so verification does not require a live fnOS service.
+  - Existing offline unit test file for `FnosClient`; add 2FA helper, routing, and payload tests here.
+- Create `tests/conftest.py`
+  - Starts the sibling `fnos-mock-server` automatically for integration tests and provides a dedicated 2FA mock endpoint fixture.
+- Create `tests/test_twofa_login_mock_server.py`
+  - Verifies the complete `login()` challenge plus `submit_twofa_code()` flow against `fnos-mock-server`.
 - Modify `README.md`
   - Document the new two-step login usage and add `submit_twofa_code` to the reference table.
 
@@ -36,7 +40,7 @@ Do not create a separate 2FA module. The feature depends on private login encryp
 
 ## Baseline Notes
 
-`uv run pytest` currently runs 57 tests. The 8 offline tests in `test_fnos_client.py` pass. The 49 integration tests fail without a local fnOS service at `127.0.0.1:5666`.
+`uv run pytest` uses the sibling `fnos-mock-server` project for integration tests. The pyfnos test suite starts it automatically at `127.0.0.1:5666` when integration tests are collected.
 
 Use these verification commands during this implementation:
 
@@ -1010,7 +1014,7 @@ uv run pytest test_fnos_client.py -v
 
 Expected: PASS for all tests in `test_fnos_client.py`.
 
-- [ ] **Step 2: Run full suite and record known integration failures**
+- [ ] **Step 2: Run full suite against fnos-mock-server**
 
 Run:
 
@@ -1018,14 +1022,13 @@ Run:
 uv run pytest
 ```
 
-Expected in the current local environment:
+Expected:
 
 ```text
-test_fnos_client.py passes
-integration tests that connect to 127.0.0.1:5666 fail with ConnectionRefusedError when no fnOS service is running
+all tests pass
 ```
 
-If a local fnOS service is running, expected result may be full pass. Do not change code solely to satisfy integration tests when the only failure is `ConnectionRefusedError` to `127.0.0.1:5666`.
+The suite starts the sibling `fnos-mock-server` automatically. If that sibling project is missing, restore it before treating integration failures as product failures.
 
 - [ ] **Step 3: Inspect git history for forbidden trailer**
 
@@ -1062,7 +1065,7 @@ Prepare a concise summary covering:
 - Final success no longer depends on `longToken`.
 - `twofaSetupRequired=True` is exposed for enforced-but-unbound accounts.
 - Offline unit tests pass.
-- Full suite result depends on local fnOS availability at `127.0.0.1:5666`.
+- Full suite passes against the automatically started sibling `fnos-mock-server`.
 
 No commit is needed in this task unless Step 1 or Step 2 exposes a real code or docs defect that gets fixed.
 

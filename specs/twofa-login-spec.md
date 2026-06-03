@@ -276,7 +276,7 @@ Mock encryption in payload-shape tests by overriding `_encrypt_auth_data()`.
 
 ### Integration Tests
 
-Existing integration tests require an fnOS service at `127.0.0.1:5666`. They should not be the primary verification path for this feature unless such a service is running.
+Existing integration tests use the sibling `fnos-mock-server` project to provide an fnOS-compatible WebSocket endpoint at `127.0.0.1:5666`. The pyfnos test suite should start that mock server automatically when integration tests are collected.
 
 Manual integration verification should cover:
 
