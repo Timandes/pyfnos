@@ -114,8 +114,8 @@ class FnosClient:
         else:
             return endpoint, use_ssl
 
-    def _encrypt_login_data(self, username, password):
-        """加密登录数据"""
+    def _encrypt_auth_data(self, payload):
+        """加密登录阶段数据"""
         # 生成随机AES密钥
         self.aes_key = get_random_bytes(32)  # 256位密钥
 
@@ -124,24 +124,8 @@ class FnosClient:
         rsa_cipher = PKCS1_v1_5.new(rsa_key)
         encrypted_aes_key = rsa_cipher.encrypt(self.aes_key)
 
-        # 构造登录数据
-        login_data = {
-            "reqid": self._generate_reqid(),
-            "user": username,
-            "password": password,
-            "stay": True,
-            "deviceType": "Browser",
-            "deviceName": "Mac OS-Safari",
-            "did": self._generate_did(),
-            "req": "user.login",
-            "si": self.session_id
-        }
-
-        # 保存登录请求的reqid
-        self.login_reqid = login_data["reqid"]
-
-        # 使用AES密钥加密登录数据
-        json_data = json.dumps(login_data, separators=(',', ':'))
+        # 使用AES密钥加密登录阶段数据
+        json_data = json.dumps(payload, separators=(',', ':'))
         padded_data = pad(json_data.encode('utf-8'), AES.block_size)
 
         # 生成随机IV并加密
@@ -156,6 +140,32 @@ class FnosClient:
             "rsa": base64.b64encode(encrypted_aes_key).decode('utf-8'),
             "aes": base64.b64encode(encrypted_data).decode('utf-8')
         }
+
+    def _encrypt_login_data(
+        self,
+        username,
+        password,
+        stay=True,
+        device_type="Browser",
+        device_name="Mac OS-Safari",
+    ):
+        """加密登录数据"""
+        # 构造登录数据
+        login_data = {
+            "reqid": self._generate_reqid(),
+            "user": username,
+            "password": password,
+            "stay": stay,
+            "deviceType": device_type,
+            "deviceName": device_name,
+            "did": self._generate_did(),
+            "req": "user.login",
+            "si": self.session_id
+        }
+
+        # 保存登录请求的reqid
+        self.login_reqid = login_data["reqid"]
+        return self._encrypt_auth_data(login_data)
 
     def _decrypt_secret(self, encrypted_secret, aes_key, iv):
         """解密secret字段"""
@@ -449,7 +459,15 @@ class FnosClient:
         # 启动心跳任务
         self.heartbeat_task = asyncio.create_task(heartbeat_worker())
 
-    async def login(self, username, password, timeout: float = 10.0):
+    async def login(
+        self,
+        username,
+        password,
+        timeout: float = 10.0,
+        stay: bool = True,
+        device_type: str = "Browser",
+        device_name: str = "Mac OS-Safari",
+    ):
         """用户登录方法"""
         if not self.connected:
             raise NotConnectedError("未连接到服务器")
@@ -462,7 +480,13 @@ class FnosClient:
         self.password = password
 
         # 加密登录数据
-        encrypted_data = self._encrypt_login_data(username, password)
+        encrypted_data = self._encrypt_login_data(
+            username,
+            password,
+            stay=stay,
+            device_type=device_type,
+            device_name=device_name,
+        )
         logger.debug(f"Sending login request: {encrypted_data}")
 
         # 发送登录请求并等待响应

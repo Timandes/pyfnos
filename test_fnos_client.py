@@ -202,6 +202,40 @@ class TestFnosClient(unittest.TestCase):
         self.assertIsNone(client.long_token)
         self.assertIsNone(client.twofa_pending)
 
+    def test_encrypt_login_data_uses_configurable_device_context(self):
+        """login payload应接受stay/deviceType/deviceName参数并委托通用加密方法"""
+        client = FnosClient()
+        client.session_id = "session-123"
+        client._generate_reqid = lambda: "login-reqid"
+        client._generate_did = lambda: "device-id"
+        captured_payload = {}
+
+        def fake_encrypt_auth_data(payload):
+            captured_payload.update(payload)
+            return {"req": "encrypted", "payload": payload}
+
+        client._encrypt_auth_data = fake_encrypt_auth_data
+
+        encrypted = client._encrypt_login_data(
+            "alice",
+            "password",
+            stay=False,
+            device_type="CLI",
+            device_name="pytest-device",
+        )
+
+        self.assertEqual(encrypted["req"], "encrypted")
+        self.assertEqual(client.login_reqid, "login-reqid")
+        self.assertEqual(captured_payload["req"], "user.login")
+        self.assertEqual(captured_payload["reqid"], "login-reqid")
+        self.assertEqual(captured_payload["user"], "alice")
+        self.assertEqual(captured_payload["password"], "password")
+        self.assertFalse(captured_payload["stay"])
+        self.assertEqual(captured_payload["deviceType"], "CLI")
+        self.assertEqual(captured_payload["deviceName"], "pytest-device")
+        self.assertEqual(captured_payload["did"], "device-id")
+        self.assertEqual(captured_payload["si"], "session-123")
+
     def test_gethostname_response_routes_to_correct_future(self):
         """测试getHostName响应应该正确传递给对应的future"""
         import asyncio
