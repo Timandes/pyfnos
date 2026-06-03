@@ -29,10 +29,6 @@ This plan also detects the enforced-but-unbound setup state and returns `twofaSe
   - Owns login encryption, WebSocket message routing, login state, 2FA pending state, final credential handling, and the new public `submit_twofa_code()` API.
 - Modify `test_fnos_client.py`
   - Existing offline unit test file for `FnosClient`; add 2FA helper, routing, and payload tests here.
-- Create `tests/conftest.py`
-  - Starts the sibling `fnos-mock-server` automatically for integration tests and provides a dedicated 2FA mock endpoint fixture.
-- Create `tests/test_twofa_login_mock_server.py`
-  - Verifies the complete `login()` challenge plus `submit_twofa_code()` flow against `fnos-mock-server`.
 - Modify `README.md`
   - Document the new two-step login usage and add `submit_twofa_code` to the reference table.
 
@@ -40,7 +36,7 @@ Do not create a separate 2FA module. The feature depends on private login encryp
 
 ## Baseline Notes
 
-`uv run pytest` uses the sibling `fnos-mock-server` project for integration tests. The pyfnos test suite starts it automatically at `127.0.0.1:5666` when integration tests are collected.
+`uv run pytest` requires an fnOS-compatible mock server at `127.0.0.1:5666` for integration tests. In CI, `.github/workflows/integration-tests.yml` clones `https://github.com/Timandes/fnos-mock-server.git` and starts that server before running pyfnos tests. pyfnos should not start or vendor the mock server itself.
 
 Use these verification commands during this implementation:
 
@@ -1014,7 +1010,7 @@ uv run pytest test_fnos_client.py -v
 
 Expected: PASS for all tests in `test_fnos_client.py`.
 
-- [ ] **Step 2: Run full suite against fnos-mock-server**
+- [ ] **Step 2: Run full suite against externally started fnos-mock-server**
 
 Run:
 
@@ -1022,13 +1018,13 @@ Run:
 uv run pytest
 ```
 
-Expected:
+Expected when the GitHub `fnos-mock-server` is already running at `127.0.0.1:5666`:
 
 ```text
 all tests pass
 ```
 
-The suite starts the sibling `fnos-mock-server` automatically. If that sibling project is missing, restore it before treating integration failures as product failures.
+If no mock server is running locally, integration tests may fail with `ConnectionRefusedError`. Do not add pyfnos-side mock server startup code; update `fnos-mock-server` first when the protocol contract changes.
 
 - [ ] **Step 3: Inspect git history for forbidden trailer**
 
@@ -1065,7 +1061,7 @@ Prepare a concise summary covering:
 - Final success no longer depends on `longToken`.
 - `twofaSetupRequired=True` is exposed for enforced-but-unbound accounts.
 - Offline unit tests pass.
-- Full suite passes against the automatically started sibling `fnos-mock-server`.
+- Full suite result depends on externally starting the GitHub `fnos-mock-server` at `127.0.0.1:5666`.
 
 No commit is needed in this task unless Step 1 or Step 2 exposes a real code or docs defect that gets fixed.
 

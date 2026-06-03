@@ -276,7 +276,7 @@ Mock encryption in payload-shape tests by overriding `_encrypt_auth_data()`.
 
 ### Integration Tests
 
-Existing integration tests use the sibling `fnos-mock-server` project to provide an fnOS-compatible WebSocket endpoint at `127.0.0.1:5666`. The pyfnos test suite should start that mock server automatically when integration tests are collected.
+Existing integration tests require an fnOS-compatible service at `127.0.0.1:5666`. In CI, `.github/workflows/integration-tests.yml` clones `https://github.com/Timandes/fnos-mock-server.git` and starts that server before running pyfnos tests. pyfnos should not start or vendor the mock server itself.
 
 Manual integration verification should cover:
 
