@@ -63,6 +63,9 @@ class FnosClient:
         self.login_response = None
         self.login_future = None
         self.login_reqid = None  # 用于保存登录请求的reqid
+        self.twofa_pending = None
+        self.twofa_future = None
+        self.twofa_reqid = None
         self.decrypted_secret = None
         self.aes_key = None
         self.iv = None
@@ -190,6 +193,52 @@ class FnosClient:
         except Exception as e:
             logger.error(f"解密登录secret失败: {e}")
             return None
+
+    def _is_final_login_success(self, data):
+        """判断响应是否包含完整登录凭据"""
+        return (
+            data.get("result") == "succ"
+            and "token" in data
+            and "secret" in data
+        )
+
+    def _is_twofa_challenge(self, data):
+        """判断响应是否为已绑定2FA的登录验证码挑战"""
+        return (
+            data.get("result") == "succ"
+            and data.get("isBindTwofaSecret") is True
+            and data.get("isTrustedDevice") is False
+            and bool(data.get("accessToken"))
+            and "token" not in data
+            and "secret" not in data
+        )
+
+    def _is_twofa_setup_challenge(self, data):
+        """判断响应是否为强制2FA但尚未绑定TOTP的挑战"""
+        return (
+            data.get("result") == "succ"
+            and data.get("isTwofaEnforced") is True
+            and data.get("isBindTwofaSecret") is False
+            and bool(data.get("accessToken"))
+            and "token" not in data
+            and "secret" not in data
+        )
+
+    def _clear_twofa_state(self):
+        """清理两步验证临时状态"""
+        self.twofa_pending = None
+        self.twofa_reqid = None
+        self.twofa_future = None
+
+    def _handle_final_login_success(self, data):
+        """保存最终登录响应中的凭据"""
+        self.login_response = data
+        self.decrypted_secret = self._decrypt_login_secret(data["secret"])
+        self.token = data.get("token")
+        self.long_token = data.get("longToken")
+        self._clear_twofa_state()
+        logger.info("登录成功")
+        return data
 
     async def connect(self, endpoint, timeout: float = 3.0, use_ssl: bool = False, skip_ssl_verify: bool = True):
         """连接到WebSocket服务器

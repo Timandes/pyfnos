@@ -129,6 +129,79 @@ class TestFnosClient(unittest.TestCase):
         self.assertEqual(result, expected_result,
                          f"iz函数结果不匹配。期望: {expected_result}, 实际: {result}")
 
+    def test_final_login_success_accepts_token_and_secret_without_long_token(self):
+        """最终登录成功不应依赖longToken字段"""
+        client = FnosClient()
+
+        response = {
+            "uid": 1001,
+            "admin": True,
+            "secret": "encrypted-secret",
+            "token": "short-token",
+            "result": "succ",
+            "reqid": "6a1ee1ca00000000000000000004",
+        }
+
+        self.assertTrue(client._is_final_login_success(response))
+
+    def test_twofa_challenge_detection_for_bound_untrusted_device(self):
+        """已绑定2FA且当前设备不可信时应该识别为验证码挑战"""
+        client = FnosClient()
+
+        response = {
+            "isTwofaEnforced": True,
+            "isBindTwofaSecret": True,
+            "isBindSecureEmail": True,
+            "secureEmail": "tim*****@gmail.com",
+            "isTrustedDevice": False,
+            "accessToken": "tNSYygumSut0IDJCypvre5YQsOJeYQir",
+            "result": "succ",
+            "reqid": "6a1ee1b700000000000000000003",
+        }
+
+        self.assertTrue(client._is_twofa_challenge(response))
+        self.assertFalse(client._is_twofa_setup_challenge(response))
+
+    def test_twofa_setup_detection_for_enforced_unbound_account(self):
+        """强制2FA但未绑定TOTP时应该识别为setup挑战"""
+        client = FnosClient()
+
+        response = {
+            "isTwofaEnforced": True,
+            "isBindTwofaSecret": False,
+            "isBindSecureEmail": False,
+            "isTrustedDevice": False,
+            "accessToken": "setup-access-token",
+            "twofaSecret": "secret-for-qr",
+            "otpauth": "otpauth://totp/fnOS",
+            "result": "succ",
+            "reqid": "setup-reqid",
+        }
+
+        self.assertFalse(client._is_twofa_challenge(response))
+        self.assertTrue(client._is_twofa_setup_challenge(response))
+
+    def test_handle_final_login_success_stores_optional_long_token(self):
+        """最终登录响应应保存token并允许longToken缺失"""
+        client = FnosClient()
+        client._decrypt_login_secret = lambda encrypted_secret: "decrypted-secret"
+
+        response = {
+            "uid": 1001,
+            "secret": "encrypted-secret",
+            "token": "short-token",
+            "result": "succ",
+            "reqid": "final-reqid",
+        }
+
+        result = client._handle_final_login_success(response)
+
+        self.assertEqual(result, response)
+        self.assertEqual(client.decrypted_secret, "decrypted-secret")
+        self.assertEqual(client.token, "short-token")
+        self.assertIsNone(client.long_token)
+        self.assertIsNone(client.twofa_pending)
+
     def test_gethostname_response_routes_to_correct_future(self):
         """测试getHostName响应应该正确传递给对应的future"""
         import asyncio
