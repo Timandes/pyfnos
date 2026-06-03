@@ -66,6 +66,7 @@ class FnosClient:
         self.twofa_pending = None
         self.twofa_future = None
         self.twofa_reqid = None
+        self.login_context = {}
         self.decrypted_secret = None
         self.aes_key = None
         self.iv = None
@@ -250,6 +251,38 @@ class FnosClient:
         logger.info("登录成功")
         return data
 
+    def _handle_twofa_challenge(self, data, context):
+        """保存已绑定2FA登录挑战上下文"""
+        self.twofa_pending = {
+            "accessToken": data["accessToken"],
+            "username": context.get("username"),
+            "stay": context.get("stay", True),
+            "deviceType": context.get("deviceType", "Browser"),
+            "deviceName": context.get("deviceName", "Mac OS-Safari"),
+        }
+        self.login_response = {
+            **data,
+            "twofaRequired": True,
+            "twofaSetupRequired": False,
+        }
+        return self.login_response
+
+    def _handle_twofa_setup_challenge(self, data, context):
+        """保存强制2FA绑定挑战上下文"""
+        self.twofa_pending = {
+            "accessToken": data["accessToken"],
+            "username": context.get("username"),
+            "stay": context.get("stay", True),
+            "deviceType": context.get("deviceType", "Browser"),
+            "deviceName": context.get("deviceName", "Mac OS-Safari"),
+        }
+        self.login_response = {
+            **data,
+            "twofaRequired": False,
+            "twofaSetupRequired": True,
+        }
+        return self.login_response
+
     async def connect(self, endpoint, timeout: float = 3.0, use_ssl: bool = False, skip_ssl_verify: bool = True):
         """连接到WebSocket服务器
         
@@ -375,18 +408,19 @@ class FnosClient:
             elif "res" in data and data["res"] == "pong":
                 # 这是心跳响应
                 logger.debug("收到心跳响应: pong")
-            elif "longToken" in data and "result" in data and data["result"] == "succ":
-                # 这是账号密码登录响应
-                self.login_response = data
-                # 解密secret字段并保存
-                if "secret" in data:
-                    self.decrypted_secret = self._decrypt_login_secret(data["secret"])
-                    self.token = data["token"]
-                    self.long_token = data["longToken"]
-                    logger.debug(f"服务器返回的secret: {self.decrypted_secret}")
+            elif self._is_final_login_success(data):
+                self._handle_final_login_success(data)
+                logger.debug(f"服务器返回的secret: {self.decrypted_secret}")
                 if self.login_future and not self.login_future.done():
                     self.login_future.set_result(self.login_response)
-                logger.info("登录成功")
+            elif self._is_twofa_challenge(data):
+                self._handle_twofa_challenge(data, self.login_context)
+                if self.login_future and not self.login_future.done():
+                    self.login_future.set_result(self.login_response)
+            elif self._is_twofa_setup_challenge(data):
+                self._handle_twofa_setup_challenge(data, self.login_context)
+                if self.login_future and not self.login_future.done():
+                    self.login_future.set_result(self.login_response)
             elif "result" in data and data["result"] == "fail" and self.login_reqid and "reqid" in data and data["reqid"] == self.login_reqid:
                 # 登录失败 - 只有reqid匹配登录请求的响应才处理为登录失败
                 self.login_response = data
@@ -478,6 +512,12 @@ class FnosClient:
         # 保存用户名和密码用于重连
         self.username = username
         self.password = password
+        self.login_context = {
+            "username": username,
+            "stay": stay,
+            "deviceType": device_type,
+            "deviceName": device_name,
+        }
 
         # 加密登录数据
         encrypted_data = self._encrypt_login_data(

@@ -236,6 +236,100 @@ class TestFnosClient(unittest.TestCase):
         self.assertEqual(captured_payload["did"], "device-id")
         self.assertEqual(captured_payload["si"], "session-123")
 
+    def test_process_message_routes_twofa_challenge_to_login_future(self):
+        """2FA challenge响应应完成login_future并保存pending上下文"""
+        import asyncio
+        import json
+
+        async def run_test():
+            client = FnosClient()
+            future = asyncio.Future()
+            client.login_future = future
+            client.login_reqid = "login-reqid"
+
+            response = {
+                "isTwofaEnforced": True,
+                "isBindTwofaSecret": True,
+                "isBindSecureEmail": True,
+                "secureEmail": "tim*****@gmail.com",
+                "isTrustedDevice": False,
+                "accessToken": "access-token",
+                "result": "succ",
+                "reqid": "login-reqid",
+            }
+
+            await client._process_message(json.dumps(response))
+
+            self.assertTrue(future.done())
+            result = future.result()
+            self.assertTrue(result["twofaRequired"])
+            self.assertFalse(result["twofaSetupRequired"])
+            self.assertEqual(client.twofa_pending["accessToken"], "access-token")
+
+        asyncio.run(run_test())
+
+    def test_process_message_routes_twofa_setup_challenge_to_login_future(self):
+        """强制但未绑定2FA响应应完成login_future并标记setup required"""
+        import asyncio
+        import json
+
+        async def run_test():
+            client = FnosClient()
+            future = asyncio.Future()
+            client.login_future = future
+            client.login_reqid = "setup-reqid"
+
+            response = {
+                "isTwofaEnforced": True,
+                "isBindTwofaSecret": False,
+                "isBindSecureEmail": False,
+                "isTrustedDevice": False,
+                "accessToken": "setup-access-token",
+                "twofaSecret": "secret-for-qr",
+                "otpauth": "otpauth://totp/fnOS",
+                "result": "succ",
+                "reqid": "setup-reqid",
+            }
+
+            await client._process_message(json.dumps(response))
+
+            self.assertTrue(future.done())
+            result = future.result()
+            self.assertFalse(result["twofaRequired"])
+            self.assertTrue(result["twofaSetupRequired"])
+            self.assertEqual(client.twofa_pending["accessToken"], "setup-access-token")
+
+        asyncio.run(run_test())
+
+    def test_process_message_accepts_final_login_without_long_token(self):
+        """最终登录响应没有longToken时也应完成login_future"""
+        import asyncio
+        import json
+
+        async def run_test():
+            client = FnosClient()
+            client._decrypt_login_secret = lambda encrypted_secret: "decrypted-secret"
+            future = asyncio.Future()
+            client.login_future = future
+
+            response = {
+                "uid": 1001,
+                "secret": "encrypted-secret",
+                "token": "short-token",
+                "result": "succ",
+                "reqid": "final-reqid",
+            }
+
+            await client._process_message(json.dumps(response))
+
+            self.assertTrue(future.done())
+            self.assertEqual(future.result(), response)
+            self.assertEqual(client.decrypted_secret, "decrypted-secret")
+            self.assertEqual(client.token, "short-token")
+            self.assertIsNone(client.long_token)
+
+        asyncio.run(run_test())
+
     def test_gethostname_response_routes_to_correct_future(self):
         """测试getHostName响应应该正确传递给对应的future"""
         import asyncio
