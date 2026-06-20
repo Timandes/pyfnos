@@ -5,7 +5,7 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 并且遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [0.13.0] - 2026-06-03
+## [0.13.0] - 2026-06-20
 
 ### Added
 - `FnosClient.login()` 支持识别登录阶段的两步验证挑战
