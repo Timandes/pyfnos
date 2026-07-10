@@ -307,11 +307,13 @@ Add one runnable example program for each new domain class:
 - `examples/live_update.py`
 
 Every example will reuse the connection, authentication, SSL, and optional 2FA
-helpers from `examples/common.py`, close the client in `finally`, and perform
-read-only calls only. New examples require credentials through the shared CLI
-arguments rather than embedding real credentials or environment values. Output
-will favor concise labels plus the returned query data, without assuming that
-lists are non-empty.
+helpers from `examples/common.py` and close the client in `finally`. Every call
+added by this feature is read-only; existing example behavior, including the
+pre-existing create/remove demonstration in `examples/file.py`, remains
+unchanged. New examples require credentials through the shared CLI arguments
+rather than embedding real credentials or environment values. Output will favor
+concise labels plus the returned query data, without assuming that lists are
+non-empty.
 
 ## Documentation
 
