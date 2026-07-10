@@ -18,6 +18,8 @@ SDK until matching request fixtures are captured.
 - Follow the existing SDK convention of returning the raw response `dict`.
 - Keep all existing classes, methods, imports, and response behavior compatible.
 - Verify every wrapper independently and against the mock server.
+- Provide runnable example programs for every new domain class and every
+  extended existing class.
 - Document the new modules, methods, examples, and deferred endpoints.
 
 ## Non-goals
@@ -271,11 +273,53 @@ verification step, not a runtime or packaging dependency.
 Run the full pyfnos test suite with the updated mock server. Existing login,
 2FA, reconnect, and domain tests must continue to pass.
 
+Run every file under `examples/` with `--help` in a non-network smoke test so
+syntax errors, invalid imports, stale public class names, and broken argument
+parser setup fail CI before any connection is attempted. The endpoint contract
+tests remain the behavioral coverage for calls demonstrated by the examples;
+the example programs themselves are not executed against a live server in the
+unit-test job.
+
+## Example Programs
+
+Extend the existing examples for classes that gain methods:
+
+- `examples/docker_manager.py`
+- `examples/network.py`
+- `examples/resource_monitor.py`
+- `examples/sac.py`
+- `examples/share.py`
+- `examples/file.py`
+- `examples/store.py`
+- `examples/user.py`
+- `examples/system_info.py`
+
+Add one runnable example program for each new domain class:
+
+- `examples/backup_manager.py`
+- `examples/download_center.py`
+- `examples/ip_blocker.py`
+- `examples/license_manager.py`
+- `examples/mount_manager.py`
+- `examples/network_server.py`
+- `examples/security.py`
+- `examples/system_restore.py`
+- `examples/live_update.py`
+
+Every example will reuse the connection, authentication, SSL, and optional 2FA
+helpers from `examples/common.py`, close the client in `finally`, and perform
+read-only calls only. New examples require credentials through the shared CLI
+arguments rather than embedding real credentials or environment values. Output
+will favor concise labels plus the returned query data, without assuming that
+lists are non-empty.
+
 ## Documentation
 
 - Extend the README API table with all new methods grouped by class.
-- Add concise examples for each new domain class and representative extensions
-  to existing classes.
+- Add the runnable programs listed in the Example Programs section and include
+  representative calls for every newly added method.
+- Extend the README example-program table with all nine new files and update the
+  descriptions of the nine extended files.
 - Export every new class from `fnos.__init__` and include it in `__all__`.
 - Add an Unreleased changelog entry summarizing the 71 new read-only query
   wrappers.
@@ -291,5 +335,8 @@ The feature is complete when:
    tests or an equivalent custom-argument test.
 3. Validation, timeout propagation, and mutable-input behavior are tested.
 4. The updated mock-server integration suite and full pyfnos suite pass.
-5. README, exports, examples, and changelog reflect the new public surface.
-6. No wrapper is added for the seven response-only endpoints.
+5. All 18 new or extended example files cover the new public surface and pass
+   non-network `--help` smoke checks.
+6. README, exports, example inventory, and changelog reflect the new public
+   surface.
+7. No wrapper is added for the seven response-only endpoints.
