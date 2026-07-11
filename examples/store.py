@@ -46,6 +46,13 @@ async def main():
             
             # 创建Store实例
             store = Store(client)
+
+            print("缓存设备状态:", await store.get_cache_device_state())
+            print("磁盘空闲时间:", await store.get_disk_idle_time())
+            print("磁盘唤醒配置:", await store.get_disk_wakeup())
+            print("可移动设备配置:", await store.get_removable_config())
+            print("缓存设备列表:", await store.list_cache_devices())
+            print("可移动设备列表:", await store.list_removable_devices())
             
             # 调用general方法
             try:
