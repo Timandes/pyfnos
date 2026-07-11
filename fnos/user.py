@@ -15,6 +15,8 @@
 import json
 import asyncio
 import logging
+
+from ._validation import require_non_empty_string, require_non_negative_int
 from .client import FnosClient
 
 # 创建logger实例
@@ -93,3 +95,62 @@ class User:
         # 使用FnoClient的新方法发送请求并等待响应
         response = await self.client.request_payload_with_response("user.isAdmin", payload, timeout)
         return response
+
+    async def list_tokens(self, timeout: float = 10.0) -> dict:
+        """获取当前账号的登录令牌列表。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.accountsrv.v1.token.list", {"data": {}}, timeout
+        )
+
+    async def get_my_twofa_config(self, timeout: float = 10.0) -> dict:
+        """获取当前用户的两步验证配置。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.tfa.security.v1.me.getConfig", {}, timeout
+        )
+
+    async def get_global_twofa_config(self, timeout: float = 10.0) -> dict:
+        """获取系统级两步验证配置。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.tfa.security.v1.twofa.getConfig", {}, timeout
+        )
+
+    async def get_user_twofa_config(self, uid: int, timeout: float = 10.0) -> dict:
+        """获取指定用户的两步验证配置。"""
+        require_non_negative_int("uid", uid)
+        return await self.client.request_payload_with_response(
+            "appcgi.tfa.security.v1.user.getTwofaConfig",
+            {"data": {"uid": uid}},
+            timeout,
+        )
+
+    async def get_active_state(self, timeout: float = 10.0) -> dict:
+        """获取当前用户活跃状态。"""
+        return await self.client.request_payload_with_response(
+            "user.active", {}, timeout
+        )
+
+    async def get_group_info(self, group: str, timeout: float = 10.0) -> dict:
+        """获取指定用户组详情。"""
+        require_non_empty_string("group", group)
+        return await self.client.request_payload_with_response(
+            "user.groupInfo", {"group": group}, timeout
+        )
+
+    async def list_groups(self, timeout: float = 10.0) -> dict:
+        """获取用户组列表。"""
+        return await self.client.request_payload_with_response(
+            "user.groupList", {}, timeout
+        )
+
+    async def list_login_devices(self, timeout: float = 10.0) -> dict:
+        """获取登录设备列表。"""
+        return await self.client.request_payload_with_response(
+            "user.listLoginDevice", {}, timeout
+        )
+
+    async def get_preference(self, name: str, timeout: float = 10.0) -> dict:
+        """获取指定用户偏好。"""
+        require_non_empty_string("name", name)
+        return await self.client.request_payload_with_response(
+            "usrdat.get", {"name": name}, timeout
+        )
