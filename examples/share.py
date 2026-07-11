@@ -81,6 +81,11 @@ async def main():
         print("WebDAV 配置:", await share.webdav_options())
         print("WebDAV 共享配置:", await share.webdav_share_options())
 
+        print("分享链接默认配置:", await share.get_link_defaults())
+        print("默认分享链接:", await share.get_default_link())
+        print("分享链接列表:", await share.list_links())
+        print("分享链接权限:", await share.get_link_permission())
+
     finally:
         # 清理连接
         await client.close()
