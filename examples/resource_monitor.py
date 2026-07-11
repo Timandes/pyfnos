@@ -81,7 +81,11 @@ async def main():
                 print("网络资源信息:", net_result)
             except Exception as e:
                 print(f"获取网络资源信息失败: {e}")
-            
+
+            print("NPU资源信息:", await resource_monitor.npu())
+            print("进程资源信息:", await resource_monitor.processes())
+            print("服务进程资源信息:", await resource_monitor.service_processes())
+            print("系统风扇信息:", await resource_monitor.system_fan())
             
         except Exception as e:
             print(f"登录失败: {e}")

@@ -119,3 +119,27 @@ class ResourceMonitor:
         # 使用FnoClient的新方法发送请求并等待响应
         response = await self.client.request_payload_with_response("appcgi.resmon.gen", payload, timeout)
         return response
+
+    async def npu(self, timeout: float = 10.0) -> dict:
+        """请求 NPU 资源监控信息。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.resmon.npu", {}, timeout
+        )
+
+    async def processes(self, timeout: float = 10.0) -> dict:
+        """请求进程资源监控信息。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.resmon.proc.list", {}, timeout
+        )
+
+    async def service_processes(self, timeout: float = 10.0) -> dict:
+        """请求服务进程资源监控信息。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.resmon.proc.srv", {}, timeout
+        )
+
+    async def system_fan(self, timeout: float = 10.0) -> dict:
+        """请求系统风扇信息。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.resmon.sysFan", {}, timeout
+        )
