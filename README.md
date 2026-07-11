@@ -169,6 +169,94 @@ uv run examples/twofa_login.py --user myuser --password mypassword -e my-server.
 | IscsiManager | `list_lun_usergroups` | 获取 LUN 用户组列表（支持lunName和wwn参数） |
 | IscsiManager | `list_targets` | 获取 Target 列表 |
 
+### 扩展只读查询 API
+
+| 模块 | 方法 | 功能说明 |
+| --- | --- | --- |
+| DockerManager | `list_image_downloads` | 获取 Docker 镜像下载任务 |
+| DockerManager | `list_images` | 获取 Docker 镜像列表 |
+| DockerManager | `list_networks` | 获取 Docker 网络列表 |
+| DockerManager | `list_registry_repositories(keyword="", page=1, page_size=20)` | 分页查询镜像仓库 |
+| Network | `get_gateway` | 获取默认网关信息 |
+| Network | `get_multi_gateway_status` | 获取多网关状态 |
+| Network | `get_nic_performance_mode` | 获取网卡性能模式 |
+| Network | `get_info` | 获取指定网卡详情 |
+| Network | `get_ssh_status` | 获取 SSH 服务状态 |
+| ResourceMonitor | `npu` | 获取 NPU 资源监控信息 |
+| ResourceMonitor | `processes` | 获取进程资源监控信息 |
+| ResourceMonitor | `service_processes` | 获取服务进程资源监控信息 |
+| ResourceMonitor | `system_fan` | 获取系统风扇信息 |
+| File | `list_app_directories` | 获取应用目录列表 |
+| File | `list_favorites` | 获取收藏文件列表 |
+| File | `list_directory_entries` | 获取目录视图条目 |
+| File | `list_recent` | 获取最近文件列表 |
+| File | `list_shared` | 获取当前用户共享列表 |
+| File | `list_shared_by_others` | 获取其他用户共享列表 |
+| File | `list_team_trash_bins` | 获取团队回收站列表 |
+| File | `list_trash` | 获取个人回收站内容 |
+| Store | `get_cache_device_state` | 获取缓存设备状态 |
+| Store | `get_disk_idle_time` | 获取磁盘空闲时间配置 |
+| Store | `get_disk_wakeup` | 获取磁盘唤醒配置 |
+| Store | `get_removable_config` | 获取可移动设备配置 |
+| Store | `list_cache_devices` | 获取缓存设备列表 |
+| Store | `list_removable_devices` | 获取可移动设备列表 |
+| User | `list_tokens` | 获取当前账号登录令牌列表 |
+| User | `get_my_twofa_config` | 获取当前用户两步验证配置 |
+| User | `get_global_twofa_config` | 获取系统级两步验证配置 |
+| User | `get_user_twofa_config` | 获取指定用户两步验证配置 |
+| User | `get_active_state` | 获取当前用户活跃状态 |
+| User | `get_group_info` | 获取指定用户组详情 |
+| User | `list_groups` | 获取用户组列表 |
+| User | `list_login_devices` | 获取登录设备列表 |
+| User | `get_preference` | 获取指定用户偏好 |
+| Share | `dlna_options` | 获取 DLNA 服务配置 |
+| Share | `dlna_share_options` | 获取 DLNA 共享配置 |
+| Share | `ftp_options` | 获取 FTP 服务配置 |
+| Share | `ftp_share_options` | 获取 FTP 共享配置 |
+| Share | `nfs_options` | 获取 NFS 服务配置 |
+| Share | `nfs_share_options` | 获取 NFS 共享配置 |
+| Share | `smb_share_options` | 获取 SMB 共享配置 |
+| Share | `webdav_options` | 获取 WebDAV 服务配置 |
+| Share | `webdav_share_options` | 获取 WebDAV 共享配置 |
+| Share | `get_link_defaults` | 获取分享链接默认配置 |
+| Share | `get_default_link` | 获取默认分享链接 |
+| Share | `list_links(is_admin=False, keyword="", page=1, page_size=100, sort_column="createdTime", sort_type="DESC")` | 分页查询分享链接 |
+| Share | `get_link_permission` | 获取分享链接权限配置 |
+| SAC | `get_email_config` | 获取邮件通知配置 |
+| SAC | `list_email_providers` | 获取邮件服务商列表 |
+| SystemInfo | `get_reserved_partition` | 获取系统保留分区信息 |
+| BackupManager | `list_tasks` | 按方向获取备份任务 |
+| DownloadCenter | `get_default_save_directory` | 获取默认下载保存目录 |
+| DownloadCenter | `get_statistics` | 获取下载中心统计信息 |
+| DownloadCenter | `query_tasks(state_filter=65535, init_flag=True)` | 按状态位掩码查询下载任务 |
+| IPBlocker | `list_allowed_addresses` | 获取 IP 允许列表 |
+| IPBlocker | `get_auto_block_rule` | 获取自动阻止规则 |
+| IPBlocker | `list_denied_addresses` | 获取 IP 拒绝列表 |
+| Security | `get_firewall` | 获取防火墙配置 |
+| Security | `get_process_traffic` | 获取指定进程流量信息 |
+| LicenseManager | `list(page=1, page_size=200)` | 分页获取软件许可列表 |
+| SystemRestore | `get_info` | 获取系统恢复信息 |
+| LiveUpdate | `get_status` | 获取在线更新状态 |
+| MountManager | `list_mounts` | 获取挂载列表 |
+| MountManager | `get_settings` | 获取挂载设置 |
+| NetworkServer | `list_certificates` | 获取证书列表 |
+| NetworkServer | `get_connection_config` | 获取连接配置 |
+| NetworkServer | `get_connection_status` | 获取连接状态 |
+| NetworkServer | `list_ddns_providers` | 获取 DDNS 服务商列表 |
+| NetworkServer | `list_ddns_records(page=1, page_size=200)` | 分页获取 DDNS 记录 |
+
+### 尚未封装的抓包端点
+
+以下响应 fixture 尚无配套的脱敏请求 fixture，因此本版本不猜测其请求参数：
+
+- `appcgi.license.soft.get`
+- `appcgi.license.soft.ipc.get`
+- `appcgi.mountmgr.task.list`
+- `appcgi.sac.entry.v1.getEntryList`
+- `appcgi.sac.entry.v1.getUserDesktop`
+- `taskState.list`
+- `util.getSI`
+
 ## 命令行参数
 
 示例程序支持以下命令行参数：
@@ -192,6 +280,32 @@ uv run examples/<示例文件名>.py --user <用户名> --password <密码> [-e 
 uv run examples/user.py --user myuser --password mypassword -e my-server.com:5666
 ```
 
+### 新增查询示例
+
+以下命令沿用统一的认证、SSL 和两步验证参数：
+
+```bash
+uv run examples/backup_manager.py --user myuser --password mypassword -e my-server.com:5666 --direction 0
+uv run examples/download_center.py --user myuser --password mypassword -e my-server.com:5666 --state-filter 65535 --init-flag true
+uv run examples/ip_blocker.py --user myuser --password mypassword -e my-server.com:5666
+uv run examples/license_manager.py --user myuser --password mypassword -e my-server.com:5666 --page 1 --page-size 200
+uv run examples/live_update.py --user myuser --password mypassword -e my-server.com:5666
+uv run examples/mount_manager.py --user myuser --password mypassword -e my-server.com:5666
+uv run examples/network_server.py --user myuser --password mypassword -e my-server.com:5666 --page 1 --page-size 200
+uv run examples/security.py --user myuser --password mypassword -e my-server.com:5666
+uv run examples/system_restore.py --user myuser --password mypassword -e my-server.com:5666
+```
+
+专用参数：
+
+| 参数 | 使用示例 | 说明 |
+| --- | --- | --- |
+| `--direction` | `backup_manager.py` | 备份方向：`0` 为上传，`1` 为下载，默认 `0` |
+| `--state-filter` | `download_center.py` | 下载任务状态位掩码，默认 `65535` |
+| `--init-flag` | `download_center.py` | 是否初始化任务查询，取值 `true` 或 `false`，默认 `true` |
+| `--page` | `license_manager.py`、`network_server.py` | 页码，默认 `1` |
+| `--page-size` | `license_manager.py`、`network_server.py` | 每页数量，默认 `200` |
+
 ### 示例程序说明
 
 下表列出了 `examples` 目录中各个示例程序的功能说明：
@@ -202,20 +316,29 @@ uv run examples/user.py --user myuser --password mypassword -e my-server.com:566
 | ------ | -------- |
 | `not_connected.py` | 演示如何捕获和处理NotConnectedError异常来判断是否需要重连 |
 | `reconnect.py` | 演示如何使用FnosClient的自动重连功能 |
-| `resource_monitor.py` | 演示如何获取系统资源监控信息（CPU、GPU、内存、磁盘、网络） |
+| `resource_monitor.py` | 演示 CPU、GPU、内存、磁盘、网络、NPU、进程、服务进程和风扇查询 |
 | `resource_monitor_general.py` | 演示如何获取通用资源监控信息（支持指定监控项列表） |
-| `sac.py` | 演示如何获取UPS状态信息 |
-| `store.py` | 演示如何获取存储相关信息 |
-| `system_info.py` | 演示如何获取系统信息（主机名、版本、硬件等） |
-| `user.py` | 演示User模块的各种功能（获取用户信息、用户组等） |
+| `sac.py` | 演示 UPS、邮件通知配置和邮件服务商查询 |
+| `store.py` | 演示存储、缓存设备、可移动设备、休眠和唤醒配置查询 |
+| `system_info.py` | 演示主机、版本、硬件、运行时间和保留分区查询 |
+| `user.py` | 演示用户、用户组、令牌、登录设备、2FA 和用户偏好查询 |
 | `twofa_login.py` | 演示如何处理两步验证登录流程 |
-| `network.py` | 演示如何获取网络信息（支持type参数，可选值为0和1）和检测网络接口（支持ifName参数） |
-| `file.py` | 演示File模块的各种功能（列出文件、创建文件夹、删除文件/文件夹） |
-| `docker_manager.py` | 演示DockerManager模块的各种功能（Docker Compose项目、容器、统计信息、系统设置） |
+| `network.py` | 演示网卡、网关、多网关、性能模式和 SSH 状态查询 |
+| `file.py` | 演示文件操作及应用目录、收藏、最近文件、共享和回收站查询 |
+| `docker_manager.py` | 演示 Compose、容器、镜像、下载任务、网络和镜像仓库查询 |
 | `event_logger.py` | 演示EventLogger模块的功能（获取事件日志） |
-| `share.py` | 演示Share模块的功能（获取SMB共享配置信息） |
+| `share.py` | 演示 SMB/NFS/FTP/WebDAV/DLNA 配置及分享链接查询 |
 | `notify.py` | 演示Notify模块的功能（获取未读通知数） |
 | `iscsi_manager.py` | 演示IscsiManager模块的功能（获取iSCSI配置、Initiator、LUN、用户组、Target） |
+| `backup_manager.py` | 演示备份任务查询 |
+| `download_center.py` | 演示下载目录、统计和任务查询 |
+| `ip_blocker.py` | 演示 IP 允许列表、拒绝列表和自动阻止规则查询 |
+| `license_manager.py` | 演示软件许可列表查询 |
+| `mount_manager.py` | 演示挂载列表和挂载设置查询 |
+| `network_server.py` | 演示证书、连接状态和 DDNS 查询 |
+| `security.py` | 演示防火墙和进程流量查询 |
+| `system_restore.py` | 演示系统恢复信息查询 |
+| `live_update.py` | 演示在线更新状态查询 |
 
 ### SSL/WSS 连接示例
 

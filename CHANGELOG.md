@@ -5,6 +5,15 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 并且遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### Added
+- 新增 71 个基于 fnos-mock-server 请求/响应 fixtures 验证的只读查询接口
+- 新增 `BackupManager`、`DownloadCenter`、`IPBlocker`、`LicenseManager`、`MountManager`、`NetworkServer`、`Security`、`SystemRestore` 和 `LiveUpdate`
+- 扩展 Docker、网络、资源监控、文件、存储、用户、共享、SAC 和系统信息查询能力
+- 新增 9 个领域示例程序，并扩展 9 个现有示例程序
+- 新增 82 个请求案例的单元契约验证和 71 个端点的 mock-server 集成覆盖
+
 ## [0.13.0] - 2026-06-20
 
 ### Added

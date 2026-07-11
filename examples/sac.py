@@ -26,40 +26,44 @@ async def main():
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='Fnos SAC UPS状态示例')
     add_auth_arguments(parser)
-    
+
     args = parser.parse_args()
-    
+
     client = FnosClient()
-    
+
     # 设置消息回调
     client.on_message(on_message_handler)
-    
-    # 连接到服务器（必须指定endpoint）
-    await connect_client(client, args)
-    
-    if client.connected:
-        print("连接成功，尝试登录...")
-        try:
-            # 使用命令行参数中的用户名和密码
-            result = await login_with_twofa(client, args)
-            print("登录结果:", result)
-            
-            # 创建SAC实例
-            sac = SAC(client)
-            
-            # 调用ups_status方法
+
+    try:
+        # 连接到服务器（必须指定endpoint）
+        await connect_client(client, args)
+
+        if client.connected:
+            print("连接成功，尝试登录...")
             try:
-                ups_result = await sac.ups_status()
-                print("UPS状态信息:", ups_result)
+                # 使用命令行参数中的用户名和密码
+                result = await login_with_twofa(client, args)
+                print("登录结果:", result)
+
+                # 创建SAC实例
+                sac = SAC(client)
+
+                print("邮件通知配置:", await sac.get_email_config())
+                print("邮件服务商:", await sac.list_email_providers())
+
+                # 调用ups_status方法
+                try:
+                    ups_result = await sac.ups_status()
+                    print("UPS状态信息:", ups_result)
+                except Exception as e:
+                    print(f"获取UPS状态信息失败: {e}")
             except Exception as e:
-                print(f"获取UPS状态信息失败: {e}")
-        except Exception as e:
-            print(f"登录失败: {e}")
-    else:
-        print("连接失败")
-    
-    # 关闭连接
-    await client.close()
+                print(f"登录失败: {e}")
+        else:
+            print("连接失败")
+
+    finally:
+        await client.close()
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -25,6 +25,9 @@ async def main():
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='Fnos用户模块示例')
     add_auth_arguments(parser)
+    parser.add_argument("--uid", type=int, default=1000, help="查询两步验证配置的用户 ID")
+    parser.add_argument("--group", default="users", help="查询详情的用户组名称")
+    parser.add_argument("--preference", default="date-format", help="用户偏好名称")
     
     args = parser.parse_args()
     
@@ -52,6 +55,16 @@ async def main():
             
         # 创建User实例
         user = User(client)
+
+        print("登录令牌:", await user.list_tokens())
+        print("我的两步验证配置:", await user.get_my_twofa_config())
+        print("全局两步验证配置:", await user.get_global_twofa_config())
+        print("指定用户两步验证配置:", await user.get_user_twofa_config(args.uid))
+        print("用户活跃状态:", await user.get_active_state())
+        print("用户组详情:", await user.get_group_info(args.group))
+        print("用户组列表:", await user.list_groups())
+        print("登录设备:", await user.list_login_devices())
+        print("用户偏好:", await user.get_preference(args.preference))
         
         # 调用getInfo方法
         print("\n正在调用getInfo方法...")

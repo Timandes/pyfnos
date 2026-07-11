@@ -88,6 +88,18 @@ async def main():
                 status = "✓" if mirror["res"] else "✗"
                 print(f"  {status} {mirror['name']}: {mirror['url']}")
 
+        print("\n=== Docker 镜像下载任务 ===")
+        print(await docker_mgr.list_image_downloads())
+
+        print("\n=== Docker 镜像 ===")
+        print(await docker_mgr.list_images())
+
+        print("\n=== Docker 网络 ===")
+        print(await docker_mgr.list_networks())
+
+        print("\n=== Docker 镜像仓库 ===")
+        print(await docker_mgr.list_registry_repositories())
+
     finally:
         # 清理连接
         await client.close()

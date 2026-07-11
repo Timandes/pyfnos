@@ -71,6 +71,21 @@ async def main():
                 print(f"  文件夹: {time_machine['folder']}")
                 print(f"  当前状态: {time_machine['status']}")
 
+        print("DLNA 配置:", await share.dlna_options())
+        print("DLNA 共享配置:", await share.dlna_share_options())
+        print("FTP 配置:", await share.ftp_options())
+        print("FTP 共享配置:", await share.ftp_share_options())
+        print("NFS 配置:", await share.nfs_options())
+        print("NFS 共享配置:", await share.nfs_share_options())
+        print("SMB 共享配置:", await share.smb_share_options())
+        print("WebDAV 配置:", await share.webdav_options())
+        print("WebDAV 共享配置:", await share.webdav_share_options())
+
+        print("分享链接默认配置:", await share.get_link_defaults())
+        print("默认分享链接:", await share.get_default_link())
+        print("分享链接列表:", await share.list_links())
+        print("分享链接权限:", await share.get_link_permission())
+
     finally:
         # 清理连接
         await client.close()

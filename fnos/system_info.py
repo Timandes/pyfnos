@@ -100,3 +100,9 @@ class SystemInfo:
         # 使用FnoClient的新方法发送请求并等待响应
         response = await self.client.request_payload_with_response("appcgi.sysinfo.getUptime", {}, timeout)
         return response
+
+    async def get_reserved_partition(self, timeout: float = 10.0) -> dict:
+        """获取系统保留分区信息。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.sysinfo.getReservedPartition", {}, timeout
+        )

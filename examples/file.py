@@ -56,6 +56,15 @@ async def main():
         
         # 创建File实例
         file = File(client)
+
+        print("应用目录:", await file.list_app_directories())
+        print("收藏文件:", await file.list_favorites())
+        print("目录视图:", await file.list_directory_entries())
+        print("最近文件:", await file.list_recent())
+        print("我的共享:", await file.list_shared())
+        print("他人共享:", await file.list_shared_by_others())
+        print("团队回收站:", await file.list_team_trash_bins())
+        print("个人回收站:", await file.list_trash())
         
         # 第一步：列出用户目录下的文件
         print("\n列出用户目录下的文件...")

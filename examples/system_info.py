@@ -26,68 +26,71 @@ async def main():
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='Fnos系统信息示例')
     add_auth_arguments(parser)
-    
+
     args = parser.parse_args()
-    
+
     client = FnosClient()
-    
+
     # 设置消息回调
     client.on_message(on_message_handler)
-    
-    # 连接到服务器（必须指定endpoint）
-    await connect_client(client, args)
-    
-    if client.connected:
-        print("连接成功，尝试登录...")
-        try:
-            # 使用命令行参数中的用户名和密码
-            result = await login_with_twofa(client, args)
-            print("登录结果:", result)
-            
-            # 创建SystemInfo实例
-            system_info = SystemInfo(client)
-            
-            # 调用get_host_name方法
+
+    try:
+        # 连接到服务器（必须指定endpoint）
+        await connect_client(client, args)
+
+        if client.connected:
+            print("连接成功，尝试登录...")
             try:
-                host_name_result = await system_info.get_host_name()
-                print("主机名信息:", host_name_result)
+                # 使用命令行参数中的用户名和密码
+                result = await login_with_twofa(client, args)
+                print("登录结果:", result)
+
+                # 创建SystemInfo实例
+                system_info = SystemInfo(client)
+
+                print("保留分区信息:", await system_info.get_reserved_partition())
+
+                # 调用get_host_name方法
+                try:
+                    host_name_result = await system_info.get_host_name()
+                    print("主机名信息:", host_name_result)
+                except Exception as e:
+                    print(f"获取主机名信息失败: {e}")
+
+                # 调用get_trim_version方法
+                try:
+                    trim_version_result = await system_info.get_trim_version()
+                    print("Trim版本信息:", trim_version_result)
+                except Exception as e:
+                    print(f"获取Trim版本信息失败: {e}")
+
+                # 调用get_machine_id方法
+                try:
+                    machine_id_result = await system_info.get_machine_id()
+                    print("机器ID信息:", machine_id_result)
+                except Exception as e:
+                    print(f"获取机器ID信息失败: {e}")
+
+                # 调用get_hardware_info方法
+                try:
+                    hardware_info_result = await system_info.get_hardware_info()
+                    print("硬件信息:", hardware_info_result)
+                except Exception as e:
+                    print(f"获取硬件信息失败: {e}")
+
+                # 调用get_uptime方法
+                try:
+                    uptime_result = await system_info.get_uptime()
+                    print("系统运行时间信息:", uptime_result)
+                except Exception as e:
+                    print(f"获取系统运行时间信息失败: {e}")
             except Exception as e:
-                print(f"获取主机名信息失败: {e}")
-            
-            # 调用get_trim_version方法
-            try:
-                trim_version_result = await system_info.get_trim_version()
-                print("Trim版本信息:", trim_version_result)
-            except Exception as e:
-                print(f"获取Trim版本信息失败: {e}")
-            
-            # 调用get_machine_id方法
-            try:
-                machine_id_result = await system_info.get_machine_id()
-                print("机器ID信息:", machine_id_result)
-            except Exception as e:
-                print(f"获取机器ID信息失败: {e}")
-            
-            # 调用get_hardware_info方法
-            try:
-                hardware_info_result = await system_info.get_hardware_info()
-                print("硬件信息:", hardware_info_result)
-            except Exception as e:
-                print(f"获取硬件信息失败: {e}")
-            
-            # 调用get_uptime方法
-            try:
-                uptime_result = await system_info.get_uptime()
-                print("系统运行时间信息:", uptime_result)
-            except Exception as e:
-                print(f"获取系统运行时间信息失败: {e}")
-        except Exception as e:
-            print(f"登录失败: {e}")
-    else:
-        print("连接失败")
-    
-    # 关闭连接
-    await client.close()
+                print(f"登录失败: {e}")
+        else:
+            print("连接失败")
+
+    finally:
+        await client.close()
 
 if __name__ == "__main__":
     asyncio.run(main())

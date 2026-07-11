@@ -196,3 +196,49 @@ class File:
         # 使用FnoClient的新方法发送请求并等待响应
         response = await self.client.request_payload_with_response("file.getAcl", payload, timeout)
         return response
+
+    async def list_app_directories(self, timeout: float = 10.0) -> dict:
+        """获取应用目录列表。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.filestor.getAppDirList", {}, timeout
+        )
+
+    async def list_favorites(self, timeout: float = 10.0) -> dict:
+        """获取收藏文件列表。"""
+        return await self.client.request_payload_with_response(
+            "file.fav.list", {}, timeout
+        )
+
+    async def list_directory_entries(self, timeout: float = 10.0) -> dict:
+        """获取目录视图条目。"""
+        return await self.client.request_payload_with_response("file.lsDir", {}, timeout)
+
+    async def list_recent(self, timeout: float = 10.0) -> dict:
+        """获取最近文件列表。"""
+        return await self.client.request_payload_with_response(
+            "file.recent.list", {}, timeout
+        )
+
+    async def list_shared(self, timeout: float = 10.0) -> dict:
+        """获取当前用户的共享列表。"""
+        return await self.client.request_payload_with_response(
+            "file.share.list", {}, timeout
+        )
+
+    async def list_shared_by_others(self, timeout: float = 10.0) -> dict:
+        """获取其他用户的共享列表。"""
+        return await self.client.request_payload_with_response(
+            "file.share.listOthers", {}, timeout
+        )
+
+    async def list_team_trash_bins(self, timeout: float = 10.0) -> dict:
+        """获取团队回收站列表。"""
+        return await self.client.request_payload_with_response(
+            "file.team.trash.listTrashbin", {}, timeout
+        )
+
+    async def list_trash(self, timeout: float = 10.0) -> dict:
+        """获取个人回收站内容。"""
+        return await self.client.request_payload_with_response(
+            "file.trash.list", {}, timeout
+        )

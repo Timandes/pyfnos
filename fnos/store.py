@@ -152,3 +152,39 @@ class Store:
         
         response = await self.client.request_payload_with_response("stor.getUserStorage", payload, timeout)
         return response
+
+    async def get_cache_device_state(self, timeout: float = 10.0) -> dict:
+        """获取缓存设备状态。"""
+        return await self.client.request_payload_with_response(
+            "stor.cachedevState", {}, timeout
+        )
+
+    async def get_disk_idle_time(self, timeout: float = 10.0) -> dict:
+        """获取磁盘空闲时间配置。"""
+        return await self.client.request_payload_with_response(
+            "stor.getDiskIdleTime", {}, timeout
+        )
+
+    async def get_disk_wakeup(self, timeout: float = 10.0) -> dict:
+        """获取磁盘唤醒配置。"""
+        return await self.client.request_payload_with_response(
+            "stor.getDiskWakeup", {}, timeout
+        )
+
+    async def get_removable_config(self, timeout: float = 10.0) -> dict:
+        """获取可移动设备配置。"""
+        return await self.client.request_payload_with_response(
+            "stor.getRemovableConf", {}, timeout
+        )
+
+    async def list_cache_devices(self, timeout: float = 10.0) -> dict:
+        """获取缓存设备列表。"""
+        return await self.client.request_payload_with_response(
+            "stor.listCachedev", {}, timeout
+        )
+
+    async def list_removable_devices(self, timeout: float = 10.0) -> dict:
+        """获取可移动设备列表。"""
+        return await self.client.request_payload_with_response(
+            "stor.listRemovable", {}, timeout
+        )

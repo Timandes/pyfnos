@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import logging
+
+from ._validation import require_positive_int
 from .client import FnosClient
 
 # 创建logger实例
@@ -172,3 +174,36 @@ class DockerManager:
         """
         response = await self.client.request_payload_with_response("appcgi.dockermgr.systemSettingGet", {}, timeout)
         return response
+
+    async def list_image_downloads(self, timeout: float = 10.0) -> dict:
+        """获取 Docker 镜像下载任务。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.dockermgr.imageDownloadList", {}, timeout
+        )
+
+    async def list_images(self, timeout: float = 10.0) -> dict:
+        """获取 Docker 镜像列表。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.dockermgr.imageList", {}, timeout
+        )
+
+    async def list_networks(self, timeout: float = 10.0) -> dict:
+        """获取 Docker 网络列表。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.dockermgr.networkList", {}, timeout
+        )
+
+    async def list_registry_repositories(
+        self,
+        keyword: str = "",
+        page: int = 1,
+        page_size: int = 20,
+        timeout: float = 10.0,
+    ) -> dict:
+        """分页查询镜像仓库。"""
+        require_positive_int("page", page)
+        require_positive_int("page_size", page_size)
+        payload = {"key": keyword, "page": page, "pageSize": page_size}
+        return await self.client.request_payload_with_response(
+            "appcgi.dockermgr.registryHubRepoList", payload, timeout
+        )

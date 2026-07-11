@@ -33,6 +33,7 @@ async def main():
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='Network Example')
     add_auth_arguments(parser, default_endpoint='localhost:8080')
+    parser.add_argument("--if-name", default="eth0", help="查询详情的网卡名称")
     
     args = parser.parse_args()
     
@@ -55,6 +56,12 @@ async def main():
         
         # 创建Network实例
         network = Network(client)
+
+        print("\n默认网关:", await network.get_gateway())
+        print("\n多网关状态:", await network.get_multi_gateway_status())
+        print("\n网卡性能模式:", await network.get_nic_performance_mode())
+        print("\n网卡详情:", await network.get_info(args.if_name))
+        print("\nSSH 状态:", await network.get_ssh_status())
         
         # 调用list方法，type为0
         print("\n获取网络信息 (type=0)...")

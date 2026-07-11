@@ -26,7 +26,7 @@ jobs:
 
       - name: Clone fnos-mock-server
         env:
-          FNOS_MOCK_SERVER_REF: d26b2d21efc2ed1cfffbc09868d3445340ed1acc
+          FNOS_MOCK_SERVER_REF: d9592a05a8e07082b954921acfae3a9a915f3c01
         run: |
           git init ../fnos-mock-server
           cd ../fnos-mock-server

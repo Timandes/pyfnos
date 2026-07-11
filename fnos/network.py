@@ -15,6 +15,8 @@
 import json
 import asyncio
 import logging
+
+from ._validation import require_non_empty_string
 from .client import FnosClient
 
 # 创建logger实例
@@ -70,3 +72,34 @@ class Network:
         # 使用FnoClient的新方法发送请求并等待响应
         response = await self.client.request_payload_with_response("appcgi.network.net.detect", payload, timeout)
         return response
+
+    async def get_gateway(self, timeout: float = 10.0) -> dict:
+        """获取默认网关信息。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.network.gw.getting", {}, timeout
+        )
+
+    async def get_multi_gateway_status(self, timeout: float = 10.0) -> dict:
+        """获取多网关状态。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.network.net.getMultiGWStatus", {}, timeout
+        )
+
+    async def get_nic_performance_mode(self, timeout: float = 10.0) -> dict:
+        """获取网卡性能模式。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.network.net.getNicPerformanceMode", {}, timeout
+        )
+
+    async def get_info(self, if_name: str, timeout: float = 10.0) -> dict:
+        """获取指定网卡的详细信息。"""
+        require_non_empty_string("if_name", if_name)
+        return await self.client.request_payload_with_response(
+            "appcgi.network.net.info", {"ifName": if_name}, timeout
+        )
+
+    async def get_ssh_status(self, timeout: float = 10.0) -> dict:
+        """获取 SSH 服务状态。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.network.ssh.status", {}, timeout
+        )

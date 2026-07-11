@@ -30,7 +30,39 @@ from .event_logger import EventLogger
 from .share import Share
 from .notify import Notify
 from .iscsi_manager import IscsiManager
+from .backup_manager import BackupManager
+from .download_center import DownloadCenter
+from .ip_blocker import IPBlocker
+from .security import Security
+from .license_manager import LicenseManager
+from .system_restore import SystemRestore
+from .live_update import LiveUpdate
+from .mount_manager import MountManager
+from .network_server import NetworkServer
 
 __version__ = "0.13.0"
 
-__all__ = ["FnosClient", "Store", "ResourceMonitor", "SAC", "SystemInfo", "User", "Network", "File", "DockerManager", "EventLogger", "Share", "Notify", "IscsiManager"]
+__all__ = [
+    "FnosClient",
+    "Store",
+    "ResourceMonitor",
+    "SAC",
+    "SystemInfo",
+    "User",
+    "Network",
+    "File",
+    "DockerManager",
+    "EventLogger",
+    "Share",
+    "Notify",
+    "IscsiManager",
+    "BackupManager",
+    "DownloadCenter",
+    "IPBlocker",
+    "Security",
+    "LicenseManager",
+    "SystemRestore",
+    "LiveUpdate",
+    "MountManager",
+    "NetworkServer",
+]
