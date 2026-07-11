@@ -285,15 +285,15 @@ uv run examples/user.py --user myuser --password mypassword -e my-server.com:566
 以下命令沿用统一的认证、SSL 和两步验证参数：
 
 ```bash
-uv run examples/backup_manager.py --user <用户名> --password <密码> -e <服务器地址> --direction 0
-uv run examples/download_center.py --user <用户名> --password <密码> -e <服务器地址> --state-filter 65535 --init-flag true
-uv run examples/ip_blocker.py --user <用户名> --password <密码> -e <服务器地址>
-uv run examples/license_manager.py --user <用户名> --password <密码> -e <服务器地址> --page 1 --page-size 200
-uv run examples/live_update.py --user <用户名> --password <密码> -e <服务器地址>
-uv run examples/mount_manager.py --user <用户名> --password <密码> -e <服务器地址>
-uv run examples/network_server.py --user <用户名> --password <密码> -e <服务器地址> --page 1 --page-size 200
-uv run examples/security.py --user <用户名> --password <密码> -e <服务器地址>
-uv run examples/system_restore.py --user <用户名> --password <密码> -e <服务器地址>
+uv run examples/backup_manager.py --user myuser --password mypassword -e my-server.com:5666 --direction 0
+uv run examples/download_center.py --user myuser --password mypassword -e my-server.com:5666 --state-filter 65535 --init-flag true
+uv run examples/ip_blocker.py --user myuser --password mypassword -e my-server.com:5666
+uv run examples/license_manager.py --user myuser --password mypassword -e my-server.com:5666 --page 1 --page-size 200
+uv run examples/live_update.py --user myuser --password mypassword -e my-server.com:5666
+uv run examples/mount_manager.py --user myuser --password mypassword -e my-server.com:5666
+uv run examples/network_server.py --user myuser --password mypassword -e my-server.com:5666 --page 1 --page-size 200
+uv run examples/security.py --user myuser --password mypassword -e my-server.com:5666
+uv run examples/system_restore.py --user myuser --password mypassword -e my-server.com:5666
 ```
 
 专用参数：

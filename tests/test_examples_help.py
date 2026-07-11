@@ -124,7 +124,7 @@ def test_readme_documents_new_example_commands():
     for example_name, domain_args in NEW_EXAMPLE_COMMANDS.items():
         command = (
             f"uv run examples/{example_name} "
-            "--user <用户名> --password <密码> -e <服务器地址>"
+            "--user myuser --password mypassword -e my-server.com:5666"
         )
         if domain_args:
             command = f"{command} {domain_args}"
@@ -135,6 +135,182 @@ def test_readme_documents_new_example_commands():
     assert "`--init-flag`" in readme
     assert "`--page`" in readme
     assert "`--page-size`" in readme
+
+
+def configure_successful_example(module, monkeypatch):
+    client = FailingConnectionClient()
+
+    async def succeed(_client, _args):
+        return {"result": "succ"}
+
+    monkeypatch.setattr(module, "FnosClient", lambda: client)
+    monkeypatch.setattr(module, "connect_client", succeed)
+    monkeypatch.setattr(module, "login_with_twofa", succeed)
+    return client
+
+
+@pytest.mark.asyncio
+async def test_backup_manager_cli_passes_direction(monkeypatch):
+    monkeypatch.syspath_prepend(str(ROOT / "examples"))
+    module = load_example(ROOT / "examples" / "backup_manager.py")
+    configure_successful_example(module, monkeypatch)
+    calls = []
+
+    class RecordingBackupManager:
+        def __init__(self, _client):
+            pass
+
+        async def list_tasks(self, direction):
+            calls.append(direction)
+            return {}
+
+    monkeypatch.setattr(module, "BackupManager", RecordingBackupManager)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "backup_manager.py",
+            "--user",
+            "admin",
+            "--password",
+            "admin",
+            "--direction",
+            "1",
+        ],
+    )
+
+    await module.main()
+
+    assert calls == [1]
+
+
+@pytest.mark.asyncio
+async def test_download_center_cli_passes_task_filters(monkeypatch):
+    monkeypatch.syspath_prepend(str(ROOT / "examples"))
+    module = load_example(ROOT / "examples" / "download_center.py")
+    configure_successful_example(module, monkeypatch)
+    calls = []
+
+    class RecordingDownloadCenter:
+        def __init__(self, _client):
+            pass
+
+        async def get_default_save_directory(self):
+            return {}
+
+        async def get_statistics(self):
+            return {}
+
+        async def query_tasks(self, *, state_filter, init_flag):
+            calls.append((state_filter, init_flag))
+            return {}
+
+    monkeypatch.setattr(module, "DownloadCenter", RecordingDownloadCenter)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "download_center.py",
+            "--user",
+            "admin",
+            "--password",
+            "admin",
+            "--state-filter",
+            "16",
+            "--init-flag",
+            "false",
+        ],
+    )
+
+    await module.main()
+
+    assert calls == [(16, False)]
+
+
+@pytest.mark.asyncio
+async def test_license_manager_cli_passes_pagination(monkeypatch):
+    monkeypatch.syspath_prepend(str(ROOT / "examples"))
+    module = load_example(ROOT / "examples" / "license_manager.py")
+    configure_successful_example(module, monkeypatch)
+    calls = []
+
+    class RecordingLicenseManager:
+        def __init__(self, _client):
+            pass
+
+        async def list(self, page, page_size):
+            calls.append((page, page_size))
+            return {}
+
+    monkeypatch.setattr(module, "LicenseManager", RecordingLicenseManager)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "license_manager.py",
+            "--user",
+            "admin",
+            "--password",
+            "admin",
+            "--page",
+            "2",
+            "--page-size",
+            "50",
+        ],
+    )
+
+    await module.main()
+
+    assert calls == [(2, 50)]
+
+
+@pytest.mark.asyncio
+async def test_network_server_cli_passes_ddns_pagination(monkeypatch):
+    monkeypatch.syspath_prepend(str(ROOT / "examples"))
+    module = load_example(ROOT / "examples" / "network_server.py")
+    configure_successful_example(module, monkeypatch)
+    calls = []
+
+    class RecordingNetworkServer:
+        def __init__(self, _client):
+            pass
+
+        async def list_certificates(self):
+            return {}
+
+        async def get_connection_config(self):
+            return {}
+
+        async def get_connection_status(self):
+            return {}
+
+        async def list_ddns_providers(self):
+            return {}
+
+        async def list_ddns_records(self, page, page_size):
+            calls.append((page, page_size))
+            return {}
+
+    monkeypatch.setattr(module, "NetworkServer", RecordingNetworkServer)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "network_server.py",
+            "--user",
+            "admin",
+            "--password",
+            "admin",
+            "--page",
+            "3",
+            "--page-size",
+            "25",
+        ],
+    )
+
+    await module.main()
+
+    assert calls == [(3, 25)]
 
 
 @pytest.mark.parametrize(
