@@ -180,6 +180,47 @@ def test_download_center_init_flag_rejects_invalid_value():
     assert "必须是 true 或 false" in completed.stderr
 
 
+@pytest.mark.parametrize("example_name", sorted(NEW_EXAMPLES))
+def test_new_example_has_module_documentation(example_name, monkeypatch):
+    monkeypatch.syspath_prepend(str(ROOT / "examples"))
+    module = load_example(ROOT / "examples" / example_name)
+
+    assert module.__doc__
+    assert "示例" in module.__doc__
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("example_name", sorted(NEW_EXAMPLES))
+async def test_new_example_reports_connection_failure_and_closes(
+    example_name,
+    monkeypatch,
+    capsys,
+):
+    monkeypatch.syspath_prepend(str(ROOT / "examples"))
+    module = load_example(ROOT / "examples" / example_name)
+    client = FailingConnectionClient()
+
+    async def fail_connection(_client, _args):
+        raise RuntimeError("connection failed")
+
+    monkeypatch.setattr(module, "FnosClient", lambda: client)
+    monkeypatch.setattr(module, "connect_and_login", fail_connection, raising=False)
+    monkeypatch.setattr(module, "connect_client", fail_connection, raising=False)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [example_name, "--user", "admin", "--password", "admin"],
+    )
+
+    await module.main()
+
+    output = capsys.readouterr().out
+    assert "正在连接到服务器" in output
+    assert "发生错误: connection failed" in output
+    assert "连接已关闭" in output
+    assert client.closed
+
+
 @pytest.mark.parametrize("example", EXAMPLES, ids=lambda path: path.name)
 def test_example_help_does_not_connect(example):
     completed = subprocess.run(
