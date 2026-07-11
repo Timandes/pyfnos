@@ -81,3 +81,57 @@ class Share:
         """
         response = await self.client.request_payload_with_response("appcgi.share.smb.opt", {}, timeout)
         return response
+
+    async def dlna_options(self, timeout: float = 10.0) -> dict:
+        """获取 DLNA 服务配置。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.share.dlna.opt", {}, timeout
+        )
+
+    async def dlna_share_options(self, timeout: float = 10.0) -> dict:
+        """获取 DLNA 共享配置。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.share.dlna.share.opt", {}, timeout
+        )
+
+    async def ftp_options(self, timeout: float = 10.0) -> dict:
+        """获取 FTP 服务配置。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.share.ftp.opt", {}, timeout
+        )
+
+    async def ftp_share_options(self, timeout: float = 10.0) -> dict:
+        """获取 FTP 共享配置。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.share.ftp.share.opt", {}, timeout
+        )
+
+    async def nfs_options(self, timeout: float = 10.0) -> dict:
+        """获取 NFS 服务配置。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.share.nfs.opt", {}, timeout
+        )
+
+    async def nfs_share_options(self, timeout: float = 10.0) -> dict:
+        """获取 NFS 共享配置。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.share.nfs.share.opt", {}, timeout
+        )
+
+    async def smb_share_options(self, timeout: float = 10.0) -> dict:
+        """获取 SMB 共享配置。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.share.smb.share.opt", {}, timeout
+        )
+
+    async def webdav_options(self, timeout: float = 10.0) -> dict:
+        """获取 WebDAV 服务配置。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.share.webdav.opt", {}, timeout
+        )
+
+    async def webdav_share_options(self, timeout: float = 10.0) -> dict:
+        """获取 WebDAV 共享配置。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.share.webdav.share.opt", {}, timeout
+        )
