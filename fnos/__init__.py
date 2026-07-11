@@ -30,7 +30,9 @@ from .event_logger import EventLogger
 from .share import Share
 from .notify import Notify
 from .iscsi_manager import IscsiManager
+from .backup_manager import BackupManager
+from .download_center import DownloadCenter
 
 __version__ = "0.13.0"
 
-__all__ = ["FnosClient", "Store", "ResourceMonitor", "SAC", "SystemInfo", "User", "Network", "File", "DockerManager", "EventLogger", "Share", "Notify", "IscsiManager"]
+__all__ = ["FnosClient", "Store", "ResourceMonitor", "SAC", "SystemInfo", "User", "Network", "File", "DockerManager", "EventLogger", "Share", "Notify", "IscsiManager", "BackupManager", "DownloadCenter"]
