@@ -1,3 +1,4 @@
+import importlib.util
 import subprocess
 import sys
 from pathlib import Path
@@ -18,6 +19,32 @@ NEW_EXAMPLES = {
     "security.py",
     "system_restore.py",
 }
+EXAMPLES_REQUIRING_CONNECTION_CLEANUP = {
+    "resource_monitor.py",
+    "sac.py",
+    "store.py",
+    "system_info.py",
+}
+
+
+class FailingConnectionClient:
+    def __init__(self):
+        self.closed = False
+
+    def on_message(self, _handler):
+        pass
+
+    async def close(self):
+        self.closed = True
+
+
+def load_example(path: Path):
+    spec = importlib.util.spec_from_file_location(f"example_{path.stem}", path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_new_example_inventory_is_complete():
@@ -35,3 +62,33 @@ def test_example_help_does_not_connect(example):
     )
     assert completed.returncode == 0, completed.stderr
     assert "Traceback" not in completed.stderr
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "example_name",
+    sorted(EXAMPLES_REQUIRING_CONNECTION_CLEANUP),
+)
+async def test_extended_example_closes_client_when_connection_fails(
+    example_name,
+    monkeypatch,
+):
+    monkeypatch.syspath_prepend(str(ROOT / "examples"))
+    module = load_example(ROOT / "examples" / example_name)
+    client = FailingConnectionClient()
+
+    async def fail_connection(_client, _args):
+        raise RuntimeError("connection failed")
+
+    monkeypatch.setattr(module, "FnosClient", lambda: client)
+    monkeypatch.setattr(module, "connect_client", fail_connection)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [example_name, "--user", "admin", "--password", "admin"],
+    )
+
+    with pytest.raises(RuntimeError, match="connection failed"):
+        await module.main()
+
+    assert client.closed

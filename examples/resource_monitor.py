@@ -26,74 +26,75 @@ async def main():
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='Fnos资源监控示例')
     add_auth_arguments(parser)
-    
+
     args = parser.parse_args()
-    
+
     client = FnosClient()
-    
+
     # 设置消息回调
     client.on_message(on_message_handler)
-    
-    # 连接到服务器（必须指定endpoint）
-    await connect_client(client, args)
-    
-    if client.connected:
-        print("连接成功，尝试登录...")
-        try:
-            # 使用命令行参数中的用户名和密码
-            result = await login_with_twofa(client, args)
-            print("登录结果:", result)
-            
-            # 创建ResourceMonitor实例
-            resource_monitor = ResourceMonitor(client)
-            
-            # 调用cpu方法
-            try:
-                cpu_result = await resource_monitor.cpu()
-                print("CPU资源信息:", cpu_result)
-            except Exception as e:
-                print(f"获取CPU资源信息失败: {e}")
-            
-            # 调用gpu方法
-            try:
-                gpu_result = await resource_monitor.gpu()
-                print("GPU资源信息:", gpu_result)
-            except Exception as e:
-                print(f"获取GPU资源信息失败: {e}")
-            
-            # 调用memory方法
-            try:
-                memory_result = await resource_monitor.memory()
-                print("内存资源信息:", memory_result)
-            except Exception as e:
-                print(f"获取内存资源信息失败: {e}")
-            
-            # 调用disk方法
-            try:
-                disk_result = await resource_monitor.disk()
-                print("磁盘资源信息:", disk_result)
-            except Exception as e:
-                print(f"获取磁盘资源信息失败: {e}")
-            
-            # 调用net方法
-            try:
-                net_result = await resource_monitor.net()
-                print("网络资源信息:", net_result)
-            except Exception as e:
-                print(f"获取网络资源信息失败: {e}")
 
-            print("NPU资源信息:", await resource_monitor.npu())
-            print("进程资源信息:", await resource_monitor.processes())
-            print("服务进程资源信息:", await resource_monitor.service_processes())
-            print("系统风扇信息:", await resource_monitor.system_fan())
-            
-        except Exception as e:
-            print(f"登录失败: {e}")
-    else:
-        print("连接失败")
-    
-    # 关闭连接
-    await client.close()
+    try:
+        # 连接到服务器（必须指定endpoint）
+        await connect_client(client, args)
+
+        if client.connected:
+            print("连接成功，尝试登录...")
+            try:
+                # 使用命令行参数中的用户名和密码
+                result = await login_with_twofa(client, args)
+                print("登录结果:", result)
+
+                # 创建ResourceMonitor实例
+                resource_monitor = ResourceMonitor(client)
+
+                # 调用cpu方法
+                try:
+                    cpu_result = await resource_monitor.cpu()
+                    print("CPU资源信息:", cpu_result)
+                except Exception as e:
+                    print(f"获取CPU资源信息失败: {e}")
+
+                # 调用gpu方法
+                try:
+                    gpu_result = await resource_monitor.gpu()
+                    print("GPU资源信息:", gpu_result)
+                except Exception as e:
+                    print(f"获取GPU资源信息失败: {e}")
+
+                # 调用memory方法
+                try:
+                    memory_result = await resource_monitor.memory()
+                    print("内存资源信息:", memory_result)
+                except Exception as e:
+                    print(f"获取内存资源信息失败: {e}")
+
+                # 调用disk方法
+                try:
+                    disk_result = await resource_monitor.disk()
+                    print("磁盘资源信息:", disk_result)
+                except Exception as e:
+                    print(f"获取磁盘资源信息失败: {e}")
+
+                # 调用net方法
+                try:
+                    net_result = await resource_monitor.net()
+                    print("网络资源信息:", net_result)
+                except Exception as e:
+                    print(f"获取网络资源信息失败: {e}")
+
+                print("NPU资源信息:", await resource_monitor.npu())
+                print("进程资源信息:", await resource_monitor.processes())
+                print("服务进程资源信息:", await resource_monitor.service_processes())
+                print("系统风扇信息:", await resource_monitor.system_fan())
+
+            except Exception as e:
+                print(f"登录失败: {e}")
+        else:
+            print("连接失败")
+
+    finally:
+        await client.close()
 
 if __name__ == "__main__":
     asyncio.run(main())

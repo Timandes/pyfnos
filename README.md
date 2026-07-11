@@ -176,7 +176,7 @@ uv run examples/twofa_login.py --user myuser --password mypassword -e my-server.
 | DockerManager | `list_image_downloads` | 获取 Docker 镜像下载任务 |
 | DockerManager | `list_images` | 获取 Docker 镜像列表 |
 | DockerManager | `list_networks` | 获取 Docker 网络列表 |
-| DockerManager | `list_registry_repositories` | 分页查询镜像仓库，默认每页 20 条 |
+| DockerManager | `list_registry_repositories(keyword="", page=1, page_size=20)` | 分页查询镜像仓库 |
 | Network | `get_gateway` | 获取默认网关信息 |
 | Network | `get_multi_gateway_status` | 获取多网关状态 |
 | Network | `get_nic_performance_mode` | 获取网卡性能模式 |
@@ -220,7 +220,7 @@ uv run examples/twofa_login.py --user myuser --password mypassword -e my-server.
 | Share | `webdav_share_options` | 获取 WebDAV 共享配置 |
 | Share | `get_link_defaults` | 获取分享链接默认配置 |
 | Share | `get_default_link` | 获取默认分享链接 |
-| Share | `list_links` | 分页查询分享链接，默认每页 100 条 |
+| Share | `list_links(is_admin=False, keyword="", page=1, page_size=100, sort_column="createdTime", sort_type="DESC")` | 分页查询分享链接 |
 | Share | `get_link_permission` | 获取分享链接权限配置 |
 | SAC | `get_email_config` | 获取邮件通知配置 |
 | SAC | `list_email_providers` | 获取邮件服务商列表 |
@@ -228,13 +228,13 @@ uv run examples/twofa_login.py --user myuser --password mypassword -e my-server.
 | BackupManager | `list_tasks` | 按方向获取备份任务 |
 | DownloadCenter | `get_default_save_directory` | 获取默认下载保存目录 |
 | DownloadCenter | `get_statistics` | 获取下载中心统计信息 |
-| DownloadCenter | `query_tasks` | 按状态位掩码查询下载任务，默认查询全部状态 |
+| DownloadCenter | `query_tasks(state_filter=65535, init_flag=True)` | 按状态位掩码查询下载任务 |
 | IPBlocker | `list_allowed_addresses` | 获取 IP 允许列表 |
 | IPBlocker | `get_auto_block_rule` | 获取自动阻止规则 |
 | IPBlocker | `list_denied_addresses` | 获取 IP 拒绝列表 |
 | Security | `get_firewall` | 获取防火墙配置 |
 | Security | `get_process_traffic` | 获取指定进程流量信息 |
-| LicenseManager | `list` | 分页获取软件许可列表，默认每页 200 条 |
+| LicenseManager | `list(page=1, page_size=200)` | 分页获取软件许可列表 |
 | SystemRestore | `get_info` | 获取系统恢复信息 |
 | LiveUpdate | `get_status` | 获取在线更新状态 |
 | MountManager | `list_mounts` | 获取挂载列表 |
@@ -243,7 +243,7 @@ uv run examples/twofa_login.py --user myuser --password mypassword -e my-server.
 | NetworkServer | `get_connection_config` | 获取连接配置 |
 | NetworkServer | `get_connection_status` | 获取连接状态 |
 | NetworkServer | `list_ddns_providers` | 获取 DDNS 服务商列表 |
-| NetworkServer | `list_ddns_records` | 分页获取 DDNS 记录，默认每页 200 条 |
+| NetworkServer | `list_ddns_records(page=1, page_size=200)` | 分页获取 DDNS 记录 |
 
 ### 尚未封装的抓包端点
 
