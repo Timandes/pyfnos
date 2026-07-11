@@ -9,8 +9,18 @@ from common import add_auth_arguments, connect_and_login
 async def main():
     parser = argparse.ArgumentParser(description="fnOS 软件许可查询示例")
     add_auth_arguments(parser)
-    parser.add_argument("--page", type=int, default=1)
-    parser.add_argument("--page-size", type=int, default=200)
+    parser.add_argument(
+        "--page",
+        type=int,
+        default=1,
+        help="软件许可页码（默认：1）",
+    )
+    parser.add_argument(
+        "--page-size",
+        type=int,
+        default=200,
+        help="软件许可每页数量（默认：200）",
+    )
     args = parser.parse_args()
     client = FnosClient()
     try:

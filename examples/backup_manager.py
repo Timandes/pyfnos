@@ -9,7 +9,13 @@ from common import add_auth_arguments, connect_and_login
 async def main():
     parser = argparse.ArgumentParser(description="fnOS 备份任务查询示例")
     add_auth_arguments(parser)
-    parser.add_argument("--direction", type=int, choices=(0, 1), default=0)
+    parser.add_argument(
+        "--direction",
+        type=int,
+        choices=(0, 1),
+        default=0,
+        help="备份任务方向：0=上传，1=下载（默认：0）",
+    )
     args = parser.parse_args()
     client = FnosClient()
     try:
