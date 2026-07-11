@@ -280,6 +280,32 @@ uv run examples/<示例文件名>.py --user <用户名> --password <密码> [-e 
 uv run examples/user.py --user myuser --password mypassword -e my-server.com:5666
 ```
 
+### 新增查询示例
+
+以下命令沿用统一的认证、SSL 和两步验证参数：
+
+```bash
+uv run examples/backup_manager.py --user <用户名> --password <密码> -e <服务器地址> --direction 0
+uv run examples/download_center.py --user <用户名> --password <密码> -e <服务器地址> --state-filter 65535 --init-flag true
+uv run examples/ip_blocker.py --user <用户名> --password <密码> -e <服务器地址>
+uv run examples/license_manager.py --user <用户名> --password <密码> -e <服务器地址> --page 1 --page-size 200
+uv run examples/live_update.py --user <用户名> --password <密码> -e <服务器地址>
+uv run examples/mount_manager.py --user <用户名> --password <密码> -e <服务器地址>
+uv run examples/network_server.py --user <用户名> --password <密码> -e <服务器地址> --page 1 --page-size 200
+uv run examples/security.py --user <用户名> --password <密码> -e <服务器地址>
+uv run examples/system_restore.py --user <用户名> --password <密码> -e <服务器地址>
+```
+
+专用参数：
+
+| 参数 | 使用示例 | 说明 |
+| --- | --- | --- |
+| `--direction` | `backup_manager.py` | 备份方向：`0` 为上传，`1` 为下载，默认 `0` |
+| `--state-filter` | `download_center.py` | 下载任务状态位掩码，默认 `65535` |
+| `--init-flag` | `download_center.py` | 是否初始化任务查询，取值 `true` 或 `false`，默认 `true` |
+| `--page` | `license_manager.py`、`network_server.py` | 页码，默认 `1` |
+| `--page-size` | `license_manager.py`、`network_server.py` | 每页数量，默认 `200` |
+
 ### 示例程序说明
 
 下表列出了 `examples` 目录中各个示例程序的功能说明：

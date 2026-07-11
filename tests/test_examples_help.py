@@ -75,6 +75,17 @@ NEW_EXAMPLE_HELP = {
         "domain_help": (),
     },
 }
+NEW_EXAMPLE_COMMANDS = {
+    "backup_manager.py": "--direction 0",
+    "download_center.py": "--state-filter 65535 --init-flag true",
+    "ip_blocker.py": "",
+    "license_manager.py": "--page 1 --page-size 200",
+    "live_update.py": "",
+    "mount_manager.py": "",
+    "network_server.py": "--page 1 --page-size 200",
+    "security.py": "",
+    "system_restore.py": "",
+}
 EXAMPLES_REQUIRING_CONNECTION_CLEANUP = {
     "resource_monitor.py",
     "sac.py",
@@ -105,6 +116,25 @@ def load_example(path: Path):
 
 def test_new_example_inventory_is_complete():
     assert NEW_EXAMPLES <= {path.name for path in EXAMPLES}
+
+
+def test_readme_documents_new_example_commands():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+    for example_name, domain_args in NEW_EXAMPLE_COMMANDS.items():
+        command = (
+            f"uv run examples/{example_name} "
+            "--user <用户名> --password <密码> -e <服务器地址>"
+        )
+        if domain_args:
+            command = f"{command} {domain_args}"
+        assert command in readme
+
+    assert "`--direction`" in readme
+    assert "`--state-filter`" in readme
+    assert "`--init-flag`" in readme
+    assert "`--page`" in readme
+    assert "`--page-size`" in readme
 
 
 @pytest.mark.parametrize(
