@@ -46,6 +46,9 @@ async def main():
             
             # 创建SAC实例
             sac = SAC(client)
+
+            print("邮件通知配置:", await sac.get_email_config())
+            print("邮件服务商:", await sac.list_email_providers())
             
             # 调用ups_status方法
             try:

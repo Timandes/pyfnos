@@ -46,6 +46,8 @@ async def main():
             
             # 创建SystemInfo实例
             system_info = SystemInfo(client)
+
+            print("保留分区信息:", await system_info.get_reserved_partition())
             
             # 调用get_host_name方法
             try:

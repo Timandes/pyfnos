@@ -44,3 +44,15 @@ class SAC:
         # 使用FnoClient的新方法发送请求并等待响应
         response = await self.client.request_payload_with_response("appcgi.sac.ups.v1.status", {}, timeout)
         return response
+
+    async def get_email_config(self, timeout: float = 10.0) -> dict:
+        """获取邮件通知配置。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.sac.externalnotify.v1.email.getConfig", {}, timeout
+        )
+
+    async def list_email_providers(self, timeout: float = 10.0) -> dict:
+        """获取邮件服务商列表。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.sac.externalnotify.v1.email.getProviders", {}, timeout
+        )
