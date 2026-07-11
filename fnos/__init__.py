@@ -37,7 +37,9 @@ from .security import Security
 from .license_manager import LicenseManager
 from .system_restore import SystemRestore
 from .live_update import LiveUpdate
+from .mount_manager import MountManager
+from .network_server import NetworkServer
 
 __version__ = "0.13.0"
 
-__all__ = ["FnosClient", "Store", "ResourceMonitor", "SAC", "SystemInfo", "User", "Network", "File", "DockerManager", "EventLogger", "Share", "Notify", "IscsiManager", "BackupManager", "DownloadCenter", "IPBlocker", "Security", "LicenseManager", "SystemRestore", "LiveUpdate"]
+__all__ = ["FnosClient", "Store", "ResourceMonitor", "SAC", "SystemInfo", "User", "Network", "File", "DockerManager", "EventLogger", "Share", "Notify", "IscsiManager", "BackupManager", "DownloadCenter", "IPBlocker", "Security", "LicenseManager", "SystemRestore", "LiveUpdate", "MountManager", "NetworkServer"]
