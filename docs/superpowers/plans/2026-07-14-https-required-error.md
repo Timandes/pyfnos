@@ -30,6 +30,8 @@
 - Modify `fnos/client.py`: 检查 `websockets` 重定向异常链并转换为 SDK 异常。
 - Modify `README.md`: 说明如何捕获异常并显式改用 WSS。
 - Modify `CHANGELOG.md`: 在 Unreleased 中记录新增公共异常。
+- Create `examples/https_required_error.py`: 独立诊断强制 HTTPS 重定向并展示结构化异常。
+- Create `tests/test_https_required_error_example.py`: 验证诊断示例的 CLI、三条运行分支、资源关闭和文档。
 
 ### Task 1: 公共 `HTTPSRequiredError` API
 
@@ -529,4 +531,411 @@ Commit:
 ```bash
 git add fnos/client.py tests/test_https_required_error.py README.md CHANGELOG.md
 git commit -m "fix: identify fnOS HTTPS redirects"
+```
+
+### Task 3: 独立强制 HTTPS 诊断示例
+
+**Files:**
+- Create: `examples/https_required_error.py`
+- Create: `tests/test_https_required_error_example.py`
+- Modify: `README.md`
+- Modify: `CHANGELOG.md`
+
+**Interfaces:**
+- Consumes: `FnosClient.connect(endpoint)` 和 `HTTPSRequiredError(requested_uri, redirect_uri, status_code)`。
+- Produces: `run(endpoint: str) -> int`，目标异常和连接成功返回 `0`，其他异常返回 `1`。
+- Produces: `main()`，解析必填 `-e/--endpoint` 并将 `run()` 返回值作为进程退出码。
+
+- [ ] **Step 1: 写独立帮助输出的失败测试**
+
+创建 `tests/test_https_required_error_example.py`：
+
+```python
+import subprocess
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+EXAMPLE = ROOT / "examples" / "https_required_error.py"
+
+
+def test_https_required_error_example_has_endpoint_only_help():
+    completed = subprocess.run(
+        [sys.executable, str(EXAMPLE), "--help"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "fnOS 强制 HTTPS 连接诊断示例" in completed.stdout
+    assert "-e ENDPOINT" in completed.stdout
+    assert "--endpoint ENDPOINT" in completed.stdout
+    assert "HTTP/WS 服务器地址" in completed.stdout
+    assert "--user" not in completed.stdout
+    assert "--password" not in completed.stdout
+```
+
+- [ ] **Step 2: 运行帮助测试并确认 RED**
+
+Run:
+
+```bash
+uv run pytest -q tests/test_https_required_error_example.py::test_https_required_error_example_has_endpoint_only_help
+```
+
+Expected: FAIL，因为 `examples/https_required_error.py` 尚不存在，子进程返回非零退出码。
+
+- [ ] **Step 3: 实现最小 CLI 外壳**
+
+创建 `examples/https_required_error.py`：
+
+```python
+# Copyright 2025 Timandes White
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import argparse
+
+
+def main():
+    parser = argparse.ArgumentParser(description="fnOS 强制 HTTPS 连接诊断示例")
+    parser.add_argument(
+        "-e",
+        "--endpoint",
+        required=True,
+        help="HTTP/WS 服务器地址，例如 nas.example.com:5666",
+    )
+    parser.parse_args()
+
+
+if __name__ == "__main__":
+    main()
+```
+
+这一阶段只建立经过测试的 CLI 参数契约；连接行为由下一轮失败测试驱动加入。
+
+- [ ] **Step 4: 运行帮助测试并确认 GREEN**
+
+Run:
+
+```bash
+uv run pytest -q tests/test_https_required_error_example.py::test_https_required_error_example_has_endpoint_only_help
+```
+
+Expected: `1 passed`。
+
+- [ ] **Step 5: 写专用异常展示的失败测试**
+
+将 `tests/test_https_required_error_example.py` 的导入区扩展为：
+
+```python
+import importlib.util
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from fnos import HTTPSRequiredError
+```
+
+加入模块加载器、网络边界替身和目标异常测试：
+
+```python
+def load_example():
+    spec = importlib.util.spec_from_file_location("example_https_required_error", EXAMPLE)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class FakeClient:
+    def __init__(self, error=None):
+        self.error = error
+        self.connect_calls = []
+        self.closed = False
+
+    async def connect(self, endpoint):
+        self.connect_calls.append(endpoint)
+        if self.error is not None:
+            raise self.error
+
+    async def close(self):
+        self.closed = True
+
+
+@pytest.mark.asyncio
+async def test_run_reports_https_required_error_without_retry(monkeypatch, capsys):
+    module = load_example()
+    error = HTTPSRequiredError(
+        requested_uri="ws://nas.example.com:5666/websocket?type=main",
+        redirect_uri="https://nas.example.com:5667/websocket?type=main",
+        status_code=302,
+    )
+    client = FakeClient(error)
+    monkeypatch.setattr(module, "FnosClient", lambda: client)
+
+    result = await module.run("nas.example.com:5666")
+
+    output = capsys.readouterr().out
+    assert result == 0
+    assert "HTTP 重定向状态码: 302" in output
+    assert error.requested_uri in output
+    assert error.redirect_uri in output
+    assert "wss://nas.example.com:5667/websocket?type=main" in output
+    assert "SDK 未自动重试" in output
+    assert client.connect_calls == ["nas.example.com:5666"]
+    assert client.closed is True
+```
+
+- [ ] **Step 6: 运行专用异常测试并确认 RED**
+
+Run:
+
+```bash
+uv run pytest -q tests/test_https_required_error_example.py::test_run_reports_https_required_error_without_retry
+```
+
+Expected: FAIL with `AttributeError`，因为示例尚未定义 `run()`。
+
+- [ ] **Step 7: 实现目标异常分支并确认 GREEN**
+
+在 `examples/https_required_error.py` 的导入区加入：
+
+```python
+import asyncio
+
+from fnos import FnosClient, HTTPSRequiredError
+```
+
+在 `main()` 前加入：
+
+```python
+async def run(endpoint: str) -> int:
+    client = FnosClient()
+
+    try:
+        await client.connect(endpoint)
+    except HTTPSRequiredError as error:
+        suggested_wss_uri = error.redirect_uri.replace("https://", "wss://", 1)
+        print("检测到 fnOS 服务端强制 HTTPS：")
+        print(f"HTTP 重定向状态码: {error.status_code}")
+        print(f"原始 WS 请求 URI: {error.requested_uri}")
+        print(f"服务端 HTTPS 重定向 URI: {error.redirect_uri}")
+        print(f"建议使用 WSS URI: {suggested_wss_uri}")
+        print("SDK 未自动重试；请由调用方明确改用 WSS。")
+        return 0
+    finally:
+        await client.close()
+```
+
+将 `main()` 中的：
+
+```python
+    parser.parse_args()
+```
+
+替换为：
+
+```python
+    args = parser.parse_args()
+    raise SystemExit(asyncio.run(run(args.endpoint)))
+```
+
+Run:
+
+```bash
+uv run pytest -q tests/test_https_required_error_example.py::test_run_reports_https_required_error_without_retry
+```
+
+Expected: `1 passed`。
+
+- [ ] **Step 8: 写其他连接错误的失败测试**
+
+在测试文件加入：
+
+```python
+@pytest.mark.asyncio
+async def test_run_reports_unrecognized_connection_error(monkeypatch, capsys):
+    module = load_example()
+    client = FakeClient(RuntimeError("connection refused"))
+    monkeypatch.setattr(module, "FnosClient", lambda: client)
+
+    result = await module.run("nas.example.com:5666")
+
+    output = capsys.readouterr().out
+    assert result == 1
+    assert "不是已识别的强制 HTTPS 重定向" in output
+    assert "connection refused" in output
+    assert client.connect_calls == ["nas.example.com:5666"]
+    assert client.closed is True
+```
+
+Run:
+
+```bash
+uv run pytest -q tests/test_https_required_error_example.py::test_run_reports_unrecognized_connection_error
+```
+
+Expected: FAIL，因为 `RuntimeError` 仍原样抛出。
+
+- [ ] **Step 9: 实现其他错误分支并确认 GREEN**
+
+在 `run()` 的 `except HTTPSRequiredError` 与 `finally` 之间加入：
+
+```python
+    except Exception as error:
+        print(f"连接失败，但不是已识别的强制 HTTPS 重定向: {error}")
+        return 1
+```
+
+Run:
+
+```bash
+uv run pytest -q tests/test_https_required_error_example.py::test_run_reports_unrecognized_connection_error
+```
+
+Expected: `1 passed`。
+
+- [ ] **Step 10: 写正常连接成功的失败测试**
+
+在测试文件加入：
+
+```python
+@pytest.mark.asyncio
+async def test_run_reports_when_https_redirect_is_not_detected(monkeypatch, capsys):
+    module = load_example()
+    client = FakeClient()
+    monkeypatch.setattr(module, "FnosClient", lambda: client)
+
+    result = await module.run("nas.example.com:5666")
+
+    output = capsys.readouterr().out
+    assert result == 0
+    assert "未检测到强制 HTTPS 重定向" in output
+    assert client.connect_calls == ["nas.example.com:5666"]
+    assert client.closed is True
+```
+
+Run:
+
+```bash
+uv run pytest -q tests/test_https_required_error_example.py::test_run_reports_when_https_redirect_is_not_detected
+```
+
+Expected: FAIL，因为成功路径当前隐式返回 `None` 且没有诊断输出。
+
+- [ ] **Step 11: 实现成功分支并确认 GREEN**
+
+在 `run()` 的两个 `except` 与 `finally` 之间加入：
+
+```python
+    else:
+        print("连接成功，未检测到强制 HTTPS 重定向。")
+        return 0
+```
+
+Run:
+
+```bash
+uv run pytest -q tests/test_https_required_error_example.py
+```
+
+Expected: `4 passed`。
+
+- [ ] **Step 12: 写 README 和 CHANGELOG 的失败测试**
+
+在测试文件加入：
+
+```python
+def test_readme_and_changelog_document_https_required_error_example():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+
+    assert "`https_required_error.py`" in readme
+    assert (
+        "uv run python examples/https_required_error.py "
+        "-e nas-10.timandes.net:5666"
+    ) in readme
+    assert "新增 `examples/https_required_error.py` 强制 HTTPS 诊断示例" in changelog
+```
+
+Run:
+
+```bash
+uv run pytest -q tests/test_https_required_error_example.py::test_readme_and_changelog_document_https_required_error_example
+```
+
+Expected: FAIL，因为 README 和 CHANGELOG 尚未记录新示例。
+
+- [ ] **Step 13: 补充 README 与 CHANGELOG 并确认 GREEN**
+
+在 README 的示例程序表加入：
+
+```markdown
+| `https_required_error.py` | 演示如何识别 fnOS 强制 HTTPS 重定向并提示调用方改用 WSS |
+```
+
+在 README 的 SSL/WSS 连接说明末尾加入：
+
+````markdown
+也可以运行独立诊断示例；该示例只检测并展示异常，不会自动重试：
+
+```bash
+uv run python examples/https_required_error.py -e nas-10.timandes.net:5666
+```
+````
+
+在 CHANGELOG 的 `[Unreleased]` → `Added` 中加入：
+
+```markdown
+- 新增 `examples/https_required_error.py` 强制 HTTPS 诊断示例
+```
+
+Run:
+
+```bash
+uv run pytest -q tests/test_https_required_error_example.py
+```
+
+Expected: `5 passed`。
+
+- [ ] **Step 14: 运行全量验证并提交示例**
+
+Run:
+
+```bash
+uv run pytest -q tests/test_https_required_error.py tests/test_https_required_error_example.py
+uv run pytest -q -m "not integration"
+git diff --check
+git status --short
+```
+
+Expected:
+
+- 两个 HTTPS-required 测试模块全部 PASS；
+- 全量非集成测试全部 PASS，无 error 或新增 warning；
+- `git diff --check` 无输出；
+- 差异仅包含示例、对应测试、README 和 CHANGELOG。
+
+Commit:
+
+```bash
+git add examples/https_required_error.py tests/test_https_required_error_example.py README.md CHANGELOG.md
+git commit -m "feat: add HTTPS-required error example"
 ```
