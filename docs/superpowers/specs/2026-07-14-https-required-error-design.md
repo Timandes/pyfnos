@@ -140,3 +140,75 @@ ws:// endpoint
 这是一个仅针对新增可识别场景的异常细化。过去调用方通常捕获 `Exception`，仍可捕获继承自 `ConnectionError` 的新异常；需要精确处理该场景的调用方则可新增 `except HTTPSRequiredError`。
 
 主要兼容性风险来自对 `websockets` 私有实现细节的假设。设计只使用公开异常类型及其公开属性（`InvalidURI.uri`、`InvalidStatus.response`），并通过负向测试约束误判范围。项目当前依赖为 `websockets>=15.0`，测试以该版本系列的异常结构为基准。
+
+## 独立诊断示例
+
+### 目标与范围
+
+新增 `examples/https_required_error.py`，专门演示调用方如何捕获 `HTTPSRequiredError`。强制 HTTPS 重定向发生在登录前，因此示例只接受 endpoint，不要求用户名、密码或两步验证码。
+
+示例只诊断和展示，不自动切换 WSS、不自动重试，也不修改 SDK 的连接行为。
+
+### 命令行接口
+
+```bash
+uv run python examples/https_required_error.py \
+  -e nas-10.timandes.net:5666
+```
+
+参数：
+
+- `-e, --endpoint`：必填；支持 `host:port` 或 `ws://host:port`，示例以非安全 WS 发起连接。
+
+不提供 `--user`、`--password`、`--use-ssl` 或自动重试参数，避免与“检测服务端强制 HTTPS”的单一目的冲突。
+
+### 组件与流程
+
+示例拆分为两个小单元：
+
+- `run(endpoint: str) -> int`：创建 `FnosClient`、执行连接、处理异常并在 `finally` 中关闭客户端；便于直接单元测试真实示例行为。
+- `main()`：解析命令行参数，调用 `asyncio.run(run(...))`，并将返回值作为进程退出码。
+
+运行流程：
+
+```text
+endpoint
+    -> FnosClient.connect(endpoint)
+    -> HTTPSRequiredError
+       -> 输出 status_code、requested_uri、redirect_uri
+       -> 将 https:// 前缀替换为 wss://，输出建议 WSS URI
+       -> 明确说明未自动重试
+       -> 返回 0
+    -> 连接成功
+       -> 输出未检测到强制 HTTPS 重定向
+       -> 返回 0
+    -> 其他异常
+       -> 输出“不是已识别的强制 HTTPS 重定向”及原错误
+       -> 返回 1
+    -> finally 关闭客户端
+```
+
+成功检测到目标异常属于该诊断程序的预期结果，因此返回 `0`；其他无法归类的连接失败返回 `1`。
+
+### 输出要求
+
+捕获 `HTTPSRequiredError` 时，输出必须包含：
+
+- HTTP 重定向状态码；
+- 原始 WS 请求 URI；
+- 服务端 HTTPS 重定向 URI；
+- 建议的 `wss://` URI；
+- “SDK 未自动重试”的明确说明。
+
+示例不得打印用户名、密码、token 或其他认证信息。
+
+### 测试与文档
+
+新增示例测试，替换网络边界但执行真实 `run()` 逻辑，覆盖：
+
+1. `--help` 可独立运行，包含必填 endpoint，且不包含用户名密码参数；
+2. 捕获 `HTTPSRequiredError` 时输出全部结构化信息、返回 `0` 并关闭客户端；
+3. 其他连接异常不会被误报，返回 `1` 并关闭客户端；
+4. 连接成功时返回 `0` 并关闭客户端；
+5. README 包含可复制命令和示例清单条目；
+6. CHANGELOG 的 Unreleased 部分记录新增诊断示例。
