@@ -315,6 +315,7 @@ uv run examples/system_restore.py --user myuser --password mypassword -e my-serv
 | 文件名 | 功能说明 |
 | ------ | -------- |
 | `not_connected.py` | 演示如何捕获和处理NotConnectedError异常来判断是否需要重连 |
+| `https_required_error.py` | 演示如何识别 fnOS 强制 HTTPS 重定向并提示调用方改用 WSS |
 | `reconnect.py` | 演示如何使用FnosClient的自动重连功能 |
 | `resource_monitor.py` | 演示 CPU、GPU、内存、磁盘、网络、NPU、进程、服务进程和风扇查询 |
 | `resource_monitor_general.py` | 演示如何获取通用资源监控信息（支持指定监控项列表） |
@@ -367,3 +368,9 @@ except HTTPSRequiredError as error:
 ```
 
 调用方可以根据自身配置改用 `wss://` endpoint，或再次调用 `connect(..., use_ssl=True)`。
+
+也可以运行独立诊断示例；该示例只检测并展示异常，不会自动重试：
+
+```bash
+uv run python examples/https_required_error.py -e nas-10.timandes.net:5666
+```
