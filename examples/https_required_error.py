@@ -14,6 +14,7 @@
 
 import argparse
 import asyncio
+from urllib.parse import urlsplit
 
 from fnos import FnosClient, HTTPSRequiredError
 
@@ -24,7 +25,7 @@ async def run(endpoint: str) -> int:
     try:
         await client.connect(endpoint)
     except HTTPSRequiredError as error:
-        suggested_wss_uri = error.redirect_uri.replace("https://", "wss://", 1)
+        suggested_wss_uri = urlsplit(error.redirect_uri)._replace(scheme="wss").geturl()
         print("检测到 fnOS 服务端强制 HTTPS：")
         print(f"HTTP 重定向状态码: {error.status_code}")
         print(f"原始 WS 请求 URI: {error.requested_uri}")

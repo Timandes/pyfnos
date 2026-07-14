@@ -59,7 +59,7 @@ async def test_run_reports_https_required_error_without_retry(monkeypatch, capsy
     module = load_example()
     error = HTTPSRequiredError(
         requested_uri="ws://nas.example.com:5666/websocket?type=main",
-        redirect_uri="https://nas.example.com:5667/websocket?type=main",
+        redirect_uri="HTTPS://nas.example.com:5667/websocket?type=main",
         status_code=302,
     )
     client = FakeClient(error)
@@ -112,10 +112,16 @@ async def test_run_reports_when_https_redirect_is_not_detected(monkeypatch, caps
 def test_readme_and_changelog_document_https_required_error_example():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    unreleased = changelog.split("## [Unreleased]", 1)[1].split("## [", 1)[0]
 
-    assert "`https_required_error.py`" in readme
+    assert (
+        "| `https_required_error.py` | 演示如何识别 fnOS 强制 HTTPS 重定向"
+        "并提示调用方改用 WSS |"
+    ) in readme
     assert (
         "uv run python examples/https_required_error.py "
         "-e nas-10.timandes.net:5666"
     ) in readme
-    assert "新增 `examples/https_required_error.py` 强制 HTTPS 诊断示例" in changelog
+    assert "本诊断脚本只接受 endpoint" in readme
+    assert "### Added" in unreleased
+    assert "新增 `examples/https_required_error.py` 强制 HTTPS 诊断示例" in unreleased

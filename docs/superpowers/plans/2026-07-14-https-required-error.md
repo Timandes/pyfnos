@@ -684,7 +684,7 @@ async def test_run_reports_https_required_error_without_retry(monkeypatch, capsy
     module = load_example()
     error = HTTPSRequiredError(
         requested_uri="ws://nas.example.com:5666/websocket?type=main",
-        redirect_uri="https://nas.example.com:5667/websocket?type=main",
+        redirect_uri="HTTPS://nas.example.com:5667/websocket?type=main",
         status_code=302,
     )
     client = FakeClient(error)
@@ -719,6 +719,7 @@ Expected: FAIL with `AttributeError`，因为示例尚未定义 `run()`。
 
 ```python
 import asyncio
+from urllib.parse import urlsplit
 
 from fnos import FnosClient, HTTPSRequiredError
 ```
@@ -732,7 +733,7 @@ async def run(endpoint: str) -> int:
     try:
         await client.connect(endpoint)
     except HTTPSRequiredError as error:
-        suggested_wss_uri = error.redirect_uri.replace("https://", "wss://", 1)
+        suggested_wss_uri = urlsplit(error.redirect_uri)._replace(scheme="wss").geturl()
         print("检测到 fnOS 服务端强制 HTTPS：")
         print(f"HTTP 重定向状态码: {error.status_code}")
         print(f"原始 WS 请求 URI: {error.requested_uri}")
@@ -867,12 +868,19 @@ def test_readme_and_changelog_document_https_required_error_example():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
-    assert "`https_required_error.py`" in readme
+    unreleased = changelog.split("## [Unreleased]", 1)[1].split("## [", 1)[0]
+
+    assert (
+        "| `https_required_error.py` | 演示如何识别 fnOS 强制 HTTPS 重定向"
+        "并提示调用方改用 WSS |"
+    ) in readme
     assert (
         "uv run python examples/https_required_error.py "
         "-e nas-10.timandes.net:5666"
     ) in readme
-    assert "新增 `examples/https_required_error.py` 强制 HTTPS 诊断示例" in changelog
+    assert "本诊断脚本只接受 endpoint" in readme
+    assert "### Added" in unreleased
+    assert "新增 `examples/https_required_error.py` 强制 HTTPS 诊断示例" in unreleased
 ```
 
 Run:
@@ -894,7 +902,7 @@ Expected: FAIL，因为 README 和 CHANGELOG 尚未记录新示例。
 在 README 的 SSL/WSS 连接说明末尾加入：
 
 ````markdown
-也可以运行独立诊断示例；该示例只检测并展示异常，不会自动重试：
+不同于上述认证示例，本诊断脚本只接受 endpoint；它只检测并展示异常，不会自动重试：
 
 ```bash
 uv run python examples/https_required_error.py -e nas-10.timandes.net:5666

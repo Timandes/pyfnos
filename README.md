@@ -369,7 +369,7 @@ except HTTPSRequiredError as error:
 
 调用方可以根据自身配置改用 `wss://` endpoint，或再次调用 `connect(..., use_ssl=True)`。
 
-也可以运行独立诊断示例；该示例只检测并展示异常，不会自动重试：
+不同于上述认证示例，本诊断脚本只接受 endpoint；它只检测并展示异常，不会自动重试：
 
 ```bash
 uv run python examples/https_required_error.py -e nas-10.timandes.net:5666

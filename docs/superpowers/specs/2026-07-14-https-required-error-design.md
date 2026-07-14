@@ -176,7 +176,7 @@ endpoint
     -> FnosClient.connect(endpoint)
     -> HTTPSRequiredError
        -> 输出 status_code、requested_uri、redirect_uri
-       -> 将 https:// 前缀替换为 wss://，输出建议 WSS URI
+       -> 解析重定向 URI 并将 scheme 设为 wss，输出建议 WSS URI
        -> 明确说明未自动重试
        -> 返回 0
     -> 连接成功
@@ -208,6 +208,7 @@ endpoint
 
 1. `--help` 可独立运行，包含必填 endpoint，且不包含用户名密码参数；
 2. 捕获 `HTTPSRequiredError` 时输出全部结构化信息、返回 `0` 并关闭客户端；
+   建议 WSS URI 必须兼容大小写混合的 HTTPS scheme；
 3. 其他连接异常不会被误报，返回 `1` 并关闭客户端；
 4. 连接成功时返回 `0` 并关闭客户端；
 5. README 包含可复制命令和示例清单条目；
