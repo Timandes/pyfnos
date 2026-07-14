@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 import subprocess
 import sys
@@ -28,7 +29,7 @@ def make_redirect_invalid_uri(
     )
     invalid_status = InvalidStatus(response)
     invalid_uri = InvalidURI(redirect_uri, "scheme isn't ws or wss")
-    invalid_uri.__cause__ = invalid_status
+    invalid_uri.__context__ = invalid_status
     return invalid_uri
 
 
@@ -85,6 +86,48 @@ async def test_connect_translates_https_redirect_to_https_required_error():
     assert error.__cause__ is source_error
     assert client.connected is False
     connect_mock.assert_awaited_once_with(requested_uri, ssl=None)
+
+
+@pytest.mark.asyncio
+async def test_connect_translates_real_https_redirect_to_https_required_error():
+    connection_count = 0
+    redirect_uri = "https://nas.example.com:5667/websocket?type=main"
+
+    async def redirect_to_https(reader, writer):
+        nonlocal connection_count
+        connection_count += 1
+        await reader.readuntil(b"\r\n\r\n")
+        writer.write(
+            b"HTTP/1.1 302 Found\r\n"
+            + f"Location: {redirect_uri}\r\n".encode()
+            + b"Content-Length: 0\r\n"
+            b"Connection: close\r\n\r\n"
+        )
+        await writer.drain()
+        writer.close()
+        await writer.wait_closed()
+
+    server = await asyncio.start_server(redirect_to_https, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    requested_uri = f"ws://127.0.0.1:{port}/websocket?type=main"
+    client = FnosClient()
+
+    try:
+        with pytest.raises(HTTPSRequiredError) as exc_info:
+            await client.connect(f"127.0.0.1:{port}")
+    finally:
+        server.close()
+        await server.wait_closed()
+
+    error = exc_info.value
+    assert error.requested_uri == requested_uri
+    assert error.redirect_uri == redirect_uri
+    assert error.status_code == 302
+    assert isinstance(error.__cause__, InvalidURI)
+    assert error.__cause__.__cause__ is None
+    assert isinstance(error.__cause__.__context__, InvalidStatus)
+    assert client.connected is False
+    assert connection_count == 1
 
 
 @pytest.mark.asyncio

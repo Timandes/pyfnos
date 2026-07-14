@@ -128,21 +128,21 @@ class FnosClient:
         if actual_use_ssl or urlparse(error.uri).scheme.lower() != "https":
             return None
 
-        cause = error.__cause__
-        if not isinstance(cause, InvalidStatus):
+        redirect_error = error.__cause__ or error.__context__
+        if not isinstance(redirect_error, InvalidStatus):
             return None
 
-        if cause.response.status_code not in {301, 302, 303, 307, 308}:
+        if redirect_error.response.status_code not in {301, 302, 303, 307, 308}:
             return None
 
-        location = cause.response.headers.get("Location")
+        location = redirect_error.response.headers.get("Location")
         if location is None or urljoin(requested_uri, location) != error.uri:
             return None
 
         return HTTPSRequiredError(
             requested_uri=requested_uri,
             redirect_uri=error.uri,
-            status_code=cause.response.status_code,
+            status_code=redirect_error.response.status_code,
         )
 
     def _encrypt_auth_data(self, payload):

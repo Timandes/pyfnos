@@ -9,7 +9,7 @@ HTTP 302
 Location: https://nas.example.com:5667/websocket?type=main
 ```
 
-`websockets 15.0.1` 会尝试跟随重定向，但它只接受 `ws://` 和 `wss://` URI。由于 `Location` 使用 `https://`，重定向解析最终抛出 `websockets.exceptions.InvalidURI`，原始的 `InvalidStatus(302)` 则保存在异常的 `__cause__` 链中。当前 SDK 原样抛出该底层异常，调用方无法稳定区分“fnOS 要求安全连接”和普通 URI 配置错误。
+`websockets 15.0.1` 会尝试跟随重定向，但它只接受 `ws://` 和 `wss://` URI。由于 `Location` 使用 `https://`，重定向解析最终抛出 `websockets.exceptions.InvalidURI`。该异常是在处理原始 `InvalidStatus(302)` 时隐式抛出的，因此真实异常链将 `InvalidStatus` 保存在 `InvalidURI.__context__`，而不是 `__cause__`。当前 SDK 原样抛出该底层异常，调用方无法稳定区分“fnOS 要求安全连接”和普通 URI 配置错误。
 
 ## 目标
 
@@ -68,7 +68,7 @@ except HTTPSRequiredError as exc:
 1. 本次连接使用非安全 WebSocket，即 `actual_use_ssl` 为 `False`；
 2. `websockets.connect()` 抛出 `websockets.exceptions.InvalidURI`；
 3. `InvalidURI.uri` 的 scheme 为 `https`；
-4. `InvalidURI.__cause__` 是 `websockets.exceptions.InvalidStatus`；
+4. `InvalidURI` 的显式 `__cause__`（若存在）或隐式 `__context__` 是 `websockets.exceptions.InvalidStatus`；`websockets 15.0.1` 的真实重定向路径使用 `__context__`；
 5. 原始 HTTP 状态码是 `301`、`302`、`303`、`307` 或 `308`；
 6. 原始响应的 `Location` 头存在，且其经 `websockets` 解析后的目标就是上述 HTTPS URI。
 
@@ -78,11 +78,11 @@ except HTTPSRequiredError as exc:
 raise HTTPSRequiredError(
     requested_uri=uri,
     redirect_uri=error.uri,
-    status_code=cause.response.status_code,
+    status_code=redirect_error.response.status_code,
 ) from error
 ```
 
-使用显式异常链保留 `InvalidURI` 和更深层的 `InvalidStatus`，便于日志和高级诊断。
+SDK 使用显式 `raise ... from error` 让 `HTTPSRequiredError.__cause__` 指向 `InvalidURI`；原始 `InvalidURI.__context__` 继续指向 `InvalidStatus`，便于日志和高级诊断。
 
 若任一条件不满足，原异常必须原样抛出。这保证普通 endpoint 拼写错误、缺少主机名、WSS 连接失败以及非重定向握手错误不会被误报为 fnOS 强制 HTTPS。
 
@@ -101,7 +101,7 @@ raise HTTPSRequiredError(
 ```text
 ws:// endpoint
     -> fnOS 返回 HTTP 3xx + Location: https://...
-    -> websockets 抛出 InvalidURI（cause: InvalidStatus）
+    -> websockets 抛出 InvalidURI（context: InvalidStatus）
     -> FnosClient 精确匹配异常链
     -> 抛出 HTTPSRequiredError（cause: InvalidURI）
     -> 调用方选择是否改用 WSS 再次连接
@@ -121,15 +121,17 @@ ws:// endpoint
 
 ## 测试策略
 
-新增独立单元测试，通过构造与 `websockets 15` 一致的异常链并替换网络连接入口，避免依赖真实 fnOS 服务：
+新增独立测试，通过本地临时 TCP 服务返回真实 HTTP 302 握手响应，并用合成异常覆盖负向边界，无需依赖真实 fnOS 服务：
 
 1. HTTP 302 重定向到 HTTPS 时抛出 `HTTPSRequiredError`；
 2. 异常的 `requested_uri`、`redirect_uri`、`status_code` 和提示信息正确；
-3. `HTTPSRequiredError.__cause__` 保留原始 `InvalidURI`；
+3. `HTTPSRequiredError.__cause__` 保留原始 `InvalidURI`，且 `InvalidURI.__context__` 保留 `InvalidStatus`；
 4. 不带重定向原因的普通 `InvalidURI` 原样抛出；
 5. 非 HTTPS 目标或非标准重定向状态不转换；
-6. `HTTPSRequiredError` 可从 `fnos` 顶层导入。
-7. README 示例和 CHANGELOG 描述与公共 API 一致。
+6. 真实 HTTP 服务只收到一次连接，验证 SDK 没有自动重试；
+7. 全新 Python 解释器无需预加载 `websockets.exceptions` 即可导入 `fnos`；
+8. `HTTPSRequiredError` 可从 `fnos` 顶层导入；
+9. README 示例和 CHANGELOG 描述与公共 API 一致。
 
 完成定向测试后运行全量非集成测试，确认现有调用方式和异常行为未回归。
 

@@ -162,7 +162,7 @@ git commit -m "feat: add HTTPS-required connection error"
 
 **Interfaces:**
 - Consumes: `HTTPSRequiredError(requested_uri, redirect_uri, status_code)` from Task 1。
-- Consumes: `websockets.exceptions.InvalidURI.uri` 和其 `__cause__` 中的 `InvalidStatus.response`。
+- Consumes: `websockets.exceptions.InvalidURI.uri`，以及其显式 `__cause__` 或隐式 `__context__` 中的 `InvalidStatus.response`；`websockets 15.0.1` 的真实路径使用 `__context__`。
 - Produces: `FnosClient.connect()` 对强制 HTTPS 重定向抛出 `HTTPSRequiredError`，其他异常保持原样。
 
 - [ ] **Step 1: 写强制 HTTPS 重定向的失败测试**
@@ -170,6 +170,10 @@ git commit -m "feat: add HTTPS-required connection error"
 在 `tests/test_https_required_error.py` 的导入区加入：
 
 ```python
+import asyncio
+from pathlib import Path
+import subprocess
+import sys
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -178,6 +182,9 @@ from websockets.exceptions import InvalidStatus, InvalidURI
 from websockets.http11 import Response
 
 from fnos import FnosClient, HTTPSRequiredError
+
+
+ROOT = Path(__file__).resolve().parents[1]
 ```
 
 在同一文件加入异常链构造器和正向测试：
@@ -196,7 +203,7 @@ def make_redirect_invalid_uri(
     )
     invalid_status = InvalidStatus(response)
     invalid_uri = InvalidURI(redirect_uri, "scheme isn't ws or wss")
-    invalid_uri.__cause__ = invalid_status
+    invalid_uri.__context__ = invalid_status
     return invalid_uri
 
 
@@ -233,10 +240,11 @@ Expected: FAIL，因为 `FnosClient.connect()` 仍原样抛出 `InvalidURI`。
 
 - [ ] **Step 3: 实现最小异常链识别和转换**
 
-在 `fnos/client.py` 标准库导入区加入：
+在 `fnos/client.py` 导入区加入：
 
 ```python
 from urllib.parse import urljoin, urlparse
+from websockets.exceptions import InvalidStatus, InvalidURI
 ```
 
 更新本地异常导入：
@@ -250,7 +258,7 @@ from .exceptions import HTTPSRequiredError, NotConnectedError
 ```python
     @staticmethod
     def _https_required_error(
-        error: websockets.exceptions.InvalidURI,
+        error: InvalidURI,
         requested_uri: str,
         actual_use_ssl: bool,
     ) -> HTTPSRequiredError | None:
@@ -258,21 +266,21 @@ from .exceptions import HTTPSRequiredError, NotConnectedError
         if actual_use_ssl or urlparse(error.uri).scheme.lower() != "https":
             return None
 
-        cause = error.__cause__
-        if not isinstance(cause, websockets.exceptions.InvalidStatus):
+        redirect_error = error.__cause__ or error.__context__
+        if not isinstance(redirect_error, InvalidStatus):
             return None
 
-        if cause.response.status_code not in {301, 302, 303, 307, 308}:
+        if redirect_error.response.status_code not in {301, 302, 303, 307, 308}:
             return None
 
-        location = cause.response.headers.get("Location")
+        location = redirect_error.response.headers.get("Location")
         if location is None or urljoin(requested_uri, location) != error.uri:
             return None
 
         return HTTPSRequiredError(
             requested_uri=requested_uri,
             redirect_uri=error.uri,
-            status_code=cause.response.status_code,
+            status_code=redirect_error.response.status_code,
         )
 ```
 
@@ -287,7 +295,7 @@ from .exceptions import HTTPSRequiredError, NotConnectedError
 ```python
             try:
                 self.ws = await websockets.connect(uri, ssl=ssl_context)
-            except websockets.exceptions.InvalidURI as error:
+            except InvalidURI as error:
                 https_required_error = self._https_required_error(
                     error,
                     requested_uri=uri,
@@ -389,6 +397,80 @@ uv run pytest -q tests/test_https_required_error.py
 ```
 
 Expected: 全部 PASS。若任何负向用例被转换为 `HTTPSRequiredError`，收紧 `_https_required_error()` 对应条件后重跑，直到全部通过。
+
+- [ ] **Step 6a: 用真实 HTTP 302 握手验证第三方异常链契约**
+
+在 `tests/test_https_required_error.py` 加入一个由 `asyncio.start_server()` 驱动的真实握手测试。服务端返回一次 `302 + Location: https://...`，测试实际调用 `FnosClient.connect()`，不 mock `websockets.connect()`：
+
+```python
+@pytest.mark.asyncio
+async def test_connect_translates_real_https_redirect_to_https_required_error():
+    connection_count = 0
+    redirect_uri = "https://nas.example.com:5667/websocket?type=main"
+
+    async def redirect_to_https(reader, writer):
+        nonlocal connection_count
+        connection_count += 1
+        await reader.readuntil(b"\r\n\r\n")
+        writer.write(
+            b"HTTP/1.1 302 Found\r\n"
+            + f"Location: {redirect_uri}\r\n".encode()
+            + b"Content-Length: 0\r\n"
+            b"Connection: close\r\n\r\n"
+        )
+        await writer.drain()
+        writer.close()
+        await writer.wait_closed()
+
+    server = await asyncio.start_server(redirect_to_https, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    requested_uri = f"ws://127.0.0.1:{port}/websocket?type=main"
+    client = FnosClient()
+
+    try:
+        with pytest.raises(HTTPSRequiredError) as exc_info:
+            await client.connect(f"127.0.0.1:{port}")
+    finally:
+        server.close()
+        await server.wait_closed()
+
+    error = exc_info.value
+    assert error.requested_uri == requested_uri
+    assert error.redirect_uri == redirect_uri
+    assert error.status_code == 302
+    assert isinstance(error.__cause__, InvalidURI)
+    assert error.__cause__.__cause__ is None
+    assert isinstance(error.__cause__.__context__, InvalidStatus)
+    assert client.connected is False
+    assert connection_count == 1
+```
+
+Run:
+
+```bash
+uv run pytest -q tests/test_https_required_error.py::test_connect_translates_real_https_redirect_to_https_required_error
+```
+
+Expected: 修复前 FAIL 并原样抛出 `InvalidURI`；读取 `error.__context__` 后 PASS。
+
+- [ ] **Step 6b: 验证全新解释器可直接导入公共 API**
+
+加入不预加载 `websockets.exceptions` 的子进程回归测试：
+
+```python
+def test_fnos_import_does_not_require_preloading_websockets_exceptions():
+    completed = subprocess.run(
+        [sys.executable, "-c", "import fnos"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+```
+
+该测试要求 `fnos/client.py` 直接从 `websockets.exceptions` 导入新增代码使用的异常类型，不能在模块级类型注解中依赖顶层惰性属性 `websockets.exceptions`。
 
 - [ ] **Step 7: 补充 README 和 CHANGELOG**
 
