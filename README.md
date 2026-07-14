@@ -354,3 +354,16 @@ uv run examples/user.py --user myuser --password mypassword -e my-server.com:566
 # 禁用证书验证跳过（验证服务器证书）
 uv run examples/user.py --user myuser --password mypassword -e wss://my-server.com:5667 --skip-ssl-verify false
 ```
+
+当 fnOS 开启“强制 HTTPS”而调用方仍连接 HTTP/WS 端点时，SDK 会抛出 `HTTPSRequiredError`，但不会自动重试：
+
+```python
+from fnos import HTTPSRequiredError
+
+try:
+    await client.connect("my-server.com:5666")
+except HTTPSRequiredError as error:
+    print(f"请改用 WSS，服务端重定向到：{error.redirect_uri}")
+```
+
+调用方可以根据自身配置改用 `wss://` endpoint，或再次调用 `connect(..., use_ssl=True)`。

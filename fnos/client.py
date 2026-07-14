@@ -23,13 +23,15 @@ import hashlib
 import hmac
 import logging
 import ssl
+from urllib.parse import urljoin, urlparse
+from websockets.exceptions import InvalidStatus, InvalidURI
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_v1_5
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
 import websockets
 
-from .exceptions import NotConnectedError
+from .exceptions import HTTPSRequiredError, NotConnectedError
 
 # 设置日志格式
 logging.basicConfig(
@@ -115,6 +117,33 @@ class FnosClient:
             return endpoint[5:], False
         else:
             return endpoint, use_ssl
+
+    @staticmethod
+    def _https_required_error(
+        error: InvalidURI,
+        requested_uri: str,
+        actual_use_ssl: bool,
+    ) -> HTTPSRequiredError | None:
+        """将匹配 fnOS 强制 HTTPS 的重定向异常转换为 SDK 异常。"""
+        if actual_use_ssl or urlparse(error.uri).scheme.lower() != "https":
+            return None
+
+        cause = error.__cause__
+        if not isinstance(cause, InvalidStatus):
+            return None
+
+        if cause.response.status_code not in {301, 302, 303, 307, 308}:
+            return None
+
+        location = cause.response.headers.get("Location")
+        if location is None or urljoin(requested_uri, location) != error.uri:
+            return None
+
+        return HTTPSRequiredError(
+            requested_uri=requested_uri,
+            redirect_uri=error.uri,
+            status_code=cause.response.status_code,
+        )
 
     def _encrypt_auth_data(self, payload):
         """加密登录阶段数据"""
@@ -316,7 +345,17 @@ class FnosClient:
                     ssl_context.verify_mode = ssl.CERT_NONE
             
             # 创建WebSocket连接
-            self.ws = await websockets.connect(uri, ssl=ssl_context)
+            try:
+                self.ws = await websockets.connect(uri, ssl=ssl_context)
+            except InvalidURI as error:
+                https_required_error = self._https_required_error(
+                    error,
+                    requested_uri=uri,
+                    actual_use_ssl=actual_use_ssl,
+                )
+                if https_required_error is not None:
+                    raise https_required_error from error
+                raise
             logger.debug("websockets.connect returned")
 
             logger.debug("Creating async message handler...")
