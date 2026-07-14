@@ -113,6 +113,7 @@ def test_readme_and_changelog_document_https_required_error_example():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     unreleased = changelog.split("## [Unreleased]", 1)[1].split("## [", 1)[0]
+    unreleased_added = unreleased.split("### Added", 1)[1].split("### ", 1)[0]
 
     assert (
         "| `https_required_error.py` | 演示如何识别 fnOS 强制 HTTPS 重定向"
@@ -123,5 +124,7 @@ def test_readme_and_changelog_document_https_required_error_example():
         "-e nas-10.timandes.net:5666"
     ) in readme
     assert "本诊断脚本只接受 endpoint" in readme
-    assert "### Added" in unreleased
-    assert "新增 `examples/https_required_error.py` 强制 HTTPS 诊断示例" in unreleased
+    assert (
+        "新增 `examples/https_required_error.py` 强制 HTTPS 诊断示例"
+        in unreleased_added
+    )
