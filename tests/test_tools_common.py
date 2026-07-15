@@ -166,3 +166,33 @@ async def test_login_with_twofa_reports_setup_and_server_failures():
 
     with pytest.raises(RuntimeError, match="验证码错误"):
         await common.login_with_twofa(FailedClient(), "admin", "password")
+
+
+@pytest.mark.asyncio
+async def test_connect_and_login_combines_common_auth_steps():
+    common = load_tools_common()
+
+    class Client:
+        async def connect(self, endpoint, *, use_ssl, skip_ssl_verify):
+            self.connect_call = (endpoint, use_ssl, skip_ssl_verify)
+
+        async def login(self, user, password):
+            self.login_call = (user, password)
+            return {"result": "succ"}
+
+    client = Client()
+    args = argparse.Namespace(
+        user="admin",
+        password="password",
+        endpoint="nas.example.com:5666",
+        code=None,
+        trust_device=False,
+        use_ssl=True,
+        skip_ssl_verify=False,
+    )
+
+    result = await common.connect_and_login(client, args)
+
+    assert result == {"result": "succ"}
+    assert client.connect_call == ("nas.example.com:5666", True, False)
+    assert client.login_call == ("admin", "password")

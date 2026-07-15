@@ -105,3 +105,9 @@ async def login_with_twofa(
         )
 
     return result
+
+
+async def connect_and_login(client, args):
+    """Connect and login, including optional two-factor verification."""
+    await connect_client(client, args)
+    return await login_with_twofa(client, args)

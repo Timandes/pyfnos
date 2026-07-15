@@ -17,11 +17,36 @@ def load_tool_module():
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
-    spec.loader.exec_module(module)
+    missing = object()
+    previous_common = sys.modules.pop("common", missing)
+    sys.path.insert(0, str(TOOL_PATH.parent))
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.remove(str(TOOL_PATH.parent))
+        if previous_common is missing:
+            sys.modules.pop("common", None)
+        else:
+            sys.modules["common"] = previous_common
     return module
 
 
 tool = load_tool_module()
+
+
+def make_args(**overrides):
+    values = {
+        "user": "admin",
+        "password": "password",
+        "endpoint": "nas.example.com:5666",
+        "code": None,
+        "trust_device": False,
+        "use_ssl": False,
+        "skip_ssl_verify": True,
+        "debug": False,
+    }
+    values.update(overrides)
+    return argparse.Namespace(**values)
 
 
 class FakeStore:
@@ -142,13 +167,18 @@ async def test_monitor_failure_falls_back_for_all_disks_and_smart_failure_isolat
         name="sda",
         temperature=31,
         source=tool.SMART_TEMPERATURE_SOURCE,
-        skipped=["ResourceMonitor.disk()（接口调用失败: TimeoutError）"],
+        skipped=[
+            "ResourceMonitor.disk()（接口调用失败: "
+            "TimeoutError: monitor unavailable）"
+        ],
     )
     assert results[1] == tool.DiskTemperature(
         name="sdb",
         skipped=[
-            "ResourceMonitor.disk()（接口调用失败: TimeoutError）",
-            "Store.get_disk_smart('sdb')（接口调用失败: OSError）",
+            "ResourceMonitor.disk()（接口调用失败: "
+            "TimeoutError: monitor unavailable）",
+            "Store.get_disk_smart('sdb')（接口调用失败: "
+            "OSError: device unavailable）",
         ],
     )
     assert store.smart_calls == ["sda", "sdb"]
@@ -241,7 +271,7 @@ def test_format_includes_source_skips_and_unknown_temperature():
     )
 
 
-def test_parse_args_requires_credentials_and_endpoint():
+def test_parse_args_exposes_auth_ssl_twofa_and_debug_options():
     args = tool.parse_args(
         [
             "--user",
@@ -250,6 +280,13 @@ def test_parse_args_requires_credentials_and_endpoint():
             "password",
             "-e",
             "nas.example.com:5666",
+            "--code",
+            "123456",
+            "--trust-device",
+            "--use-ssl",
+            "--skip-ssl-verify",
+            "false",
+            "--debug",
         ]
     )
 
@@ -257,12 +294,16 @@ def test_parse_args_requires_credentials_and_endpoint():
         user="admin",
         password="password",
         endpoint="nas.example.com:5666",
+        code="123456",
+        trust_device=True,
+        use_ssl=True,
+        skip_ssl_verify=False,
+        debug=True,
     )
 
     incomplete_argv = [
         ["--password", "password", "-e", "nas.example.com:5666"],
         ["--user", "admin", "-e", "nas.example.com:5666"],
-        ["--user", "admin", "--password", "password"],
     ]
     for argv in incomplete_argv:
         with pytest.raises(SystemExit):
@@ -276,12 +317,12 @@ async def test_run_partial_unknown_returns_zero_and_always_closes_client(
 ):
     class FakeClient:
         def __init__(self):
-            self.connected_endpoint = None
+            self.connect_call = None
             self.login_credentials = None
             self.closed = False
 
-        async def connect(self, endpoint):
-            self.connected_endpoint = endpoint
+        async def connect(self, endpoint, *, use_ssl, skip_ssl_verify):
+            self.connect_call = (endpoint, use_ssl, skip_ssl_verify)
 
         async def login(self, user, password):
             self.login_credentials = (user, password)
@@ -307,11 +348,7 @@ async def test_run_partial_unknown_returns_zero_and_always_closes_client(
     monkeypatch.setattr(tool, "FnosClient", lambda: client)
     monkeypatch.setattr(tool, "Store", RuntimeStore)
     monkeypatch.setattr(tool, "ResourceMonitor", RuntimeMonitor)
-    args = argparse.Namespace(
-        user="admin",
-        password="password",
-        endpoint="nas.example.com:5666",
-    )
+    args = make_args(use_ssl=True, skip_ssl_verify=False)
 
     exit_code = await tool.run(args)
 
@@ -325,8 +362,66 @@ async def test_run_partial_unknown_returns_zero_and_always_closes_client(
     )
     assert captured.err == ""
     assert "must-not-be-printed" not in captured.out
-    assert client.connected_endpoint == args.endpoint
+    assert client.connect_call == (args.endpoint, True, False)
     assert client.login_credentials == (args.user, args.password)
+    assert client.closed is True
+
+
+@pytest.mark.asyncio
+async def test_run_completes_twofa_with_cli_code(monkeypatch, capsys):
+    class TwofaClient:
+        def __init__(self):
+            self.twofa_call = None
+            self.closed = False
+
+        async def connect(self, endpoint, *, use_ssl, skip_ssl_verify):
+            return None
+
+        async def login(self, user, password):
+            return {
+                "result": "fail",
+                "twofaRequired": True,
+                "secureEmail": "a***@example.com",
+            }
+
+        async def submit_twofa_code(self, code, *, trust_device):
+            self.twofa_call = (code, trust_device)
+            return {"result": "succ"}
+
+        async def close(self):
+            self.closed = True
+
+    client = TwofaClient()
+
+    class RuntimeStore(FakeStore):
+        def __init__(self, runtime_client):
+            assert runtime_client is client
+            super().__init__(["sda"])
+
+    class RuntimeMonitor(FakeResourceMonitor):
+        def __init__(self, runtime_client):
+            assert runtime_client is client
+            super().__init__(
+                {"data": {"disk": [{"name": "sda", "temp": 37}]}}
+            )
+
+    monkeypatch.setattr(tool, "FnosClient", lambda: client)
+    monkeypatch.setattr(tool, "Store", RuntimeStore)
+    monkeypatch.setattr(tool, "ResourceMonitor", RuntimeMonitor)
+
+    exit_code = await tool.run(
+        make_args(code="123456", trust_device=True)
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.out == (
+        "账号需要两步验证，安全邮箱: a***@example.com\n"
+        "sda => 37°C\n"
+        f"  来源: {tool.MONITOR_TEMPERATURE_SOURCE}\n"
+    )
+    assert captured.err == ""
+    assert client.twofa_call == ("123456", True)
     assert client.closed is True
 
 
@@ -339,13 +434,13 @@ async def test_run_login_failure_is_fatal_and_does_not_leak_response(
         def __init__(self):
             self.closed = False
 
-        async def connect(self, endpoint):
+        async def connect(self, endpoint, *, use_ssl, skip_ssl_verify):
             return None
 
         async def login(self, user, password):
             return {
                 "result": "fail",
-                "msg": "bad password",
+                "errmsg": "验证码错误",
                 "secret": "must-not-be-printed",
             }
 
@@ -354,24 +449,25 @@ async def test_run_login_failure_is_fatal_and_does_not_leak_response(
 
     client = FailedLoginClient()
     monkeypatch.setattr(tool, "FnosClient", lambda: client)
-    args = argparse.Namespace(
-        user="admin",
-        password="password",
-        endpoint="nas.example.com:5666",
-    )
+    args = make_args()
 
     exit_code = await tool.run(args)
 
     captured = capsys.readouterr()
     assert exit_code == 1
     assert captured.out == ""
-    assert captured.err == "错误: 登录失败\n"
+    assert captured.err == (
+        "错误: 登录或两步验证阶段失败\n"
+        "异常类型: RuntimeError\n"
+        "异常详情: 验证码错误\n"
+        "提示: 使用 --debug 查看完整 traceback\n"
+    )
     assert "must-not-be-printed" not in captured.err
     assert client.closed is True
 
 
 @pytest.mark.asyncio
-async def test_run_unexpected_failure_reports_only_exception_type(
+async def test_run_debug_traceback_redacts_authentication_secrets(
     monkeypatch,
     capsys,
 ):
@@ -379,18 +475,22 @@ async def test_run_unexpected_failure_reports_only_exception_type(
         def __init__(self):
             self.closed = False
 
-        async def connect(self, endpoint):
-            raise RuntimeError("secret diagnostic details")
+        async def connect(self, endpoint, *, use_ssl, skip_ssl_verify):
+            raise RuntimeError(
+                "password=password-raw, code=654321, "
+                "token=token-value, longToken=long-value, "
+                "accessToken=access-value, secret=secret-value"
+            )
 
         async def close(self):
             self.closed = True
 
     client = FailingClient()
     monkeypatch.setattr(tool, "FnosClient", lambda: client)
-    args = argparse.Namespace(
-        user="admin",
-        password="password",
-        endpoint="nas.example.com:5666",
+    args = make_args(
+        password="password-raw",
+        code="654321",
+        debug=True,
     )
 
     exit_code = await tool.run(args)
@@ -398,6 +498,63 @@ async def test_run_unexpected_failure_reports_only_exception_type(
     captured = capsys.readouterr()
     assert exit_code == 1
     assert captured.out == ""
-    assert captured.err == "错误: 磁盘温度诊断失败（RuntimeError）\n"
-    assert "secret diagnostic details" not in captured.err
+    assert "错误: 连接阶段失败\n" in captured.err
+    assert "异常类型: RuntimeError\n" in captured.err
+    assert "Traceback (most recent call last):" in captured.err
+    assert "password-raw" not in captured.err
+    assert "654321" not in captured.err
+    assert "token-value" not in captured.err
+    assert "long-value" not in captured.err
+    assert "access-value" not in captured.err
+    assert "secret-value" not in captured.err
+    assert "password=***" in captured.err
+    assert "token=***" in captured.err
+    assert client.closed is True
+
+
+@pytest.mark.asyncio
+async def test_run_disk_enumeration_failure_reports_collection_stage(
+    monkeypatch,
+    capsys,
+):
+    class Client:
+        def __init__(self):
+            self.closed = False
+
+        async def connect(self, endpoint, *, use_ssl, skip_ssl_verify):
+            return None
+
+        async def login(self, user, password):
+            return {"result": "succ"}
+
+        async def close(self):
+            self.closed = True
+
+    class InvalidStore:
+        def __init__(self, client):
+            return None
+
+        async def list_disks(self):
+            return {"disk": [{"name": ""}]}
+
+    class UnusedMonitor:
+        def __init__(self, client):
+            return None
+
+    client = Client()
+    monkeypatch.setattr(tool, "FnosClient", lambda: client)
+    monkeypatch.setattr(tool, "Store", InvalidStore)
+    monkeypatch.setattr(tool, "ResourceMonitor", UnusedMonitor)
+
+    exit_code = await tool.run(make_args())
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert captured.out == ""
+    assert captured.err == (
+        "错误: 磁盘枚举与温度获取阶段失败\n"
+        "异常类型: ValueError\n"
+        "异常详情: Store.list_disks() 返回了无效磁盘名称\n"
+        "提示: 使用 --debug 查看完整 traceback\n"
+    )
     assert client.closed is True
