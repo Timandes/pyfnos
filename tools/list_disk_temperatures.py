@@ -16,9 +16,12 @@ import argparse
 import asyncio
 from dataclasses import dataclass, field
 import math
+import re
 import sys
+import traceback
 from typing import Any
 
+from common import add_auth_arguments, connect_client, login_with_twofa
 from fnos import FnosClient, ResourceMonitor, Store
 
 
@@ -29,6 +32,22 @@ NVME_SMART_TEMPERATURE_SOURCE = (
     "nvme_smart_health_information_log.temperature"
 )
 MISSING = object()
+AUTH_VALUE_PATTERN = re.compile(
+    r"""
+    (?P<prefix>
+        ["']?(?:accessToken|longToken|token|secret|password)["']?
+        \s*[:=]\s*
+    )
+    (?P<value>
+        "(?:\\.|[^"\\])*"
+        |
+        '(?:\\.|[^'\\])*'
+        |
+        [^,\s}\]]+
+    )
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
 
 
 @dataclass
@@ -66,8 +85,77 @@ def _skip_message(source: str, value: object, reason: str) -> str:
     return f"{source} = {value!r}（{reason}）"
 
 
-def _exception_summary(error: Exception) -> str:
-    return type(error).__name__
+def _redact(text: str, sensitive_values: tuple[object, ...] = ()) -> str:
+    redacted = text
+    for value in sensitive_values:
+        if value is not None and str(value):
+            redacted = redacted.replace(str(value), "***")
+
+    def replace_auth_value(match: re.Match[str]) -> str:
+        value = match.group("value")
+        if value[:1] in {'"', "'"} and value[-1:] == value[:1]:
+            replacement = f"{value[0]}***{value[-1]}"
+        else:
+            replacement = "***"
+        return f"{match.group('prefix')}{replacement}"
+
+    return AUTH_VALUE_PATTERN.sub(replace_auth_value, redacted)
+
+
+def _exception_parts(
+    error: Exception,
+    sensitive_values: tuple[object, ...] = (),
+) -> tuple[str, str]:
+    detail = str(error).strip() or "无详细信息"
+    return type(error).__name__, _redact(detail, sensitive_values)
+
+
+def _exception_summary(
+    error: Exception,
+    sensitive_values: tuple[object, ...] = (),
+) -> str:
+    exception_type, detail = _exception_parts(error, sensitive_values)
+    return f"{exception_type}: {detail}"
+
+
+def _print_failure(
+    stage: str,
+    error: Exception,
+    args: argparse.Namespace,
+) -> None:
+    auth_sensitive_values = getattr(args, "_auth_sensitive_values", ())
+    sensitive_values = (
+        getattr(args, "password", None),
+        getattr(args, "code", None),
+        *auth_sensitive_values,
+    )
+    try:
+        exception_type, detail = _exception_parts(error, sensitive_values)
+        print(f"错误: {stage}阶段失败", file=sys.stderr)
+        print(f"异常类型: {exception_type}", file=sys.stderr)
+        print(f"异常详情: {detail}", file=sys.stderr)
+
+        if getattr(args, "debug", False):
+            formatted = "".join(
+                traceback.format_exception(
+                    type(error),
+                    error,
+                    error.__traceback__,
+                )
+            )
+            print(
+                _redact(formatted, sensitive_values),
+                file=sys.stderr,
+                end="",
+            )
+        else:
+            print(
+                "提示: 使用 --debug 查看完整 traceback",
+                file=sys.stderr,
+            )
+    finally:
+        if hasattr(args, "_auth_sensitive_values"):
+            del args._auth_sensitive_values
 
 
 def _try_temperature(
@@ -209,29 +297,25 @@ def format_disk_temperatures(results: list[DiskTemperature]) -> str:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="fnOS 磁盘温度诊断工具")
-    parser.add_argument("--user", required=True, help="用户名")
-    parser.add_argument("--password", required=True, help="密码")
+    add_auth_arguments(parser)
     parser.add_argument(
-        "-e",
-        "--endpoint",
-        required=True,
-        help="fnOS 服务器地址，例如 nas.example.com:5666",
+        "--debug",
+        action="store_true",
+        help="输出已脱敏的完整 traceback",
     )
     return parser.parse_args(argv)
 
 
 async def run(args: argparse.Namespace) -> int:
     client = FnosClient()
+    stage = "连接"
     try:
-        await client.connect(args.endpoint)
-        login_result = await client.login(args.user, args.password)
-        if (
-            not isinstance(login_result, dict)
-            or login_result.get("result") != "succ"
-        ):
-            print("错误: 登录失败", file=sys.stderr)
-            return 1
+        await connect_client(client, args)
 
+        stage = "登录或两步验证"
+        await login_with_twofa(client, args)
+
+        stage = "磁盘枚举与温度获取"
         results = await collect_disk_temperatures(
             Store(client),
             ResourceMonitor(client),
@@ -239,11 +323,7 @@ async def run(args: argparse.Namespace) -> int:
         print(format_disk_temperatures(results))
         return 0
     except Exception as error:
-        print(
-            "错误: 磁盘温度诊断失败"
-            f"（{_exception_summary(error)}）",
-            file=sys.stderr,
-        )
+        _print_failure(stage, error, args)
         return 1
     finally:
         await client.close()
