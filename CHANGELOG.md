@@ -15,6 +15,7 @@
 - 扩展 Docker、网络、资源监控、文件、存储、用户、共享、SAC 和系统信息查询能力
 - 新增 9 个领域示例程序，并扩展 9 个现有示例程序
 - 新增 82 个请求案例的单元契约验证和 71 个端点的 mock-server 集成覆盖
+- 新增 `tools/list_disk_temperatures.py` 磁盘温度诊断工具：通过 `Store.list_disks()` 枚举磁盘，优先使用 `ResourceMonitor.disk()` 温度，并在温度缺失或为 0 时回退 SMART 和 NVMe SMART
 
 ## [0.13.0] - 2026-06-20
 
