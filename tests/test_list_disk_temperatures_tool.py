@@ -122,3 +122,92 @@ async def test_missing_monitor_temp_and_zero_smart_current_use_nvme():
             f"{tool.SMART_TEMPERATURE_SOURCE} = 0（值为 0）",
         ],
     )
+
+
+@pytest.mark.asyncio
+async def test_monitor_failure_falls_back_for_all_disks_and_smart_failure_isolated():
+    store = FakeStore(
+        ["sda", "sdb"],
+        {
+            "sda": {"smart": {"temperature": {"current": 31}}},
+            "sdb": OSError("device unavailable"),
+        },
+    )
+    monitor = FakeResourceMonitor(TimeoutError("monitor unavailable"))
+
+    results = await tool.collect_disk_temperatures(store, monitor)
+
+    assert results[0] == tool.DiskTemperature(
+        name="sda",
+        temperature=31,
+        source=tool.SMART_TEMPERATURE_SOURCE,
+        skipped=["ResourceMonitor.disk()（接口调用失败: TimeoutError）"],
+    )
+    assert results[1] == tool.DiskTemperature(
+        name="sdb",
+        skipped=[
+            "ResourceMonitor.disk()（接口调用失败: TimeoutError）",
+            "Store.get_disk_smart('sdb')（接口调用失败: OSError）",
+        ],
+    )
+    assert store.smart_calls == ["sda", "sdb"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("value", "reason"),
+    [
+        (True, "不是数字"),
+        ("40", "不是数字"),
+        (float("nan"), "不是有限数值"),
+        (float("inf"), "不是有限数值"),
+        (float("-inf"), "不是有限数值"),
+    ],
+)
+async def test_invalid_monitor_values_are_reported(value, reason):
+    store = FakeStore(["sda"], {"sda": {"smart": {}}})
+    monitor = FakeResourceMonitor(
+        {"data": {"disk": [{"name": "sda", "temp": value}]}}
+    )
+
+    result = (await tool.collect_disk_temperatures(store, monitor))[0]
+
+    assert result.temperature is None
+    assert reason in result.skipped[0]
+    assert result.skipped[1:] == [
+        f"{tool.SMART_TEMPERATURE_SOURCE}（字段不存在）",
+        f"{tool.NVME_SMART_TEMPERATURE_SOURCE}（字段不存在）",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_malformed_monitor_response_is_reported_before_smart_fallback():
+    store = FakeStore(
+        ["sda"],
+        {"sda": {"smart": {"temperature": {"current": -5}}}},
+    )
+    monitor = FakeResourceMonitor({"data": {"disk": {}}})
+
+    result = (await tool.collect_disk_temperatures(store, monitor))[0]
+
+    assert result == tool.DiskTemperature(
+        name="sda",
+        temperature=-5,
+        source=tool.SMART_TEMPERATURE_SOURCE,
+        skipped=[
+            "ResourceMonitor.disk().data.disk（字段不存在或不是列表）"
+        ],
+    )
+
+
+@pytest.mark.asyncio
+async def test_invalid_disk_list_is_fatal():
+    class InvalidStore(FakeStore):
+        async def list_disks(self):
+            return {"disk": [{"name": ""}]}
+
+    with pytest.raises(ValueError, match="无效磁盘名称"):
+        await tool.collect_disk_temperatures(
+            InvalidStore([]),
+            FakeResourceMonitor({"data": {"disk": []}}),
+        )

@@ -61,6 +61,10 @@ def _skip_message(source: str, value: object, reason: str) -> str:
     return f"{source} = {value!r}（{reason}）"
 
 
+def _exception_summary(error: Exception) -> str:
+    return type(error).__name__
+
+
 def _try_temperature(
     result: DiskTemperature,
     source: str,
@@ -91,10 +95,15 @@ def _disk_names(response: object) -> list[str]:
     return names
 
 
-def _monitor_temperatures(response: object) -> dict[str, object]:
+def _monitor_temperatures(
+    response: object,
+) -> tuple[dict[str, object], str | None]:
     disks = _get_nested(response, "data", "disk")
     if not isinstance(disks, list):
-        return {}
+        return (
+            {},
+            "ResourceMonitor.disk().data.disk（字段不存在或不是列表）",
+        )
 
     temperatures = {}
     for disk in disks:
@@ -103,7 +112,7 @@ def _monitor_temperatures(response: object) -> dict[str, object]:
         name = disk.get("name")
         if isinstance(name, str) and name and name not in temperatures:
             temperatures[name] = disk.get("temp", MISSING)
-    return temperatures
+    return temperatures, None
 
 
 async def collect_disk_temperatures(
@@ -111,12 +120,27 @@ async def collect_disk_temperatures(
     resource_monitor: Any,
 ) -> list[DiskTemperature]:
     names = _disk_names(await store.list_disks())
-    monitor_temperatures = _monitor_temperatures(await resource_monitor.disk())
+
+    try:
+        monitor_response = await resource_monitor.disk()
+    except Exception as error:
+        monitor_temperatures = {}
+        monitor_problem = (
+            "ResourceMonitor.disk()（接口调用失败: "
+            f"{_exception_summary(error)}）"
+        )
+    else:
+        monitor_temperatures, monitor_problem = _monitor_temperatures(
+            monitor_response
+        )
+
     results = []
 
     for name in names:
         result = DiskTemperature(name=name)
-        if name not in monitor_temperatures:
+        if monitor_problem is not None:
+            result.skipped.append(monitor_problem)
+        elif name not in monitor_temperatures:
             result.skipped.append("ResourceMonitor.disk()（未找到该磁盘）")
         elif _try_temperature(
             result,
@@ -126,7 +150,16 @@ async def collect_disk_temperatures(
             results.append(result)
             continue
 
-        smart = await store.get_disk_smart(name)
+        try:
+            smart = await store.get_disk_smart(name)
+        except Exception as error:
+            result.skipped.append(
+                f"Store.get_disk_smart({name!r})（接口调用失败: "
+                f"{_exception_summary(error)}）"
+            )
+            results.append(result)
+            continue
+
         current = _get_nested(smart, "smart", "temperature", "current")
         if _try_temperature(result, SMART_TEMPERATURE_SOURCE, current):
             results.append(result)
