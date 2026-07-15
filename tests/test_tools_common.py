@@ -169,6 +169,43 @@ async def test_login_with_twofa_reports_setup_and_server_failures():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("msg", [None, ""])
+async def test_login_failure_falls_back_from_empty_msg_to_errmsg(msg):
+    common = load_tools_common()
+
+    class Client:
+        async def login(self, user, password):
+            return {
+                "result": "fail",
+                "msg": msg,
+                "errmsg": "具体错误",
+            }
+
+    with pytest.raises(RuntimeError, match="具体错误"):
+        await common.login_with_twofa(Client(), "admin", "password")
+
+
+@pytest.mark.asyncio
+async def test_login_failure_without_message_does_not_embed_response():
+    common = load_tools_common()
+
+    class Client:
+        async def login(self, user, password):
+            return {
+                "result": "fail",
+                "secret": "must-not-be-printed",
+            }
+
+    with pytest.raises(
+        RuntimeError,
+        match="登录失败（服务端未提供错误详情）",
+    ) as error_info:
+        await common.login_with_twofa(Client(), "admin", "password")
+
+    assert "must-not-be-printed" not in str(error_info.value)
+
+
+@pytest.mark.asyncio
 async def test_connect_and_login_combines_common_auth_steps():
     common = load_tools_common()
 

@@ -49,6 +49,21 @@ def make_args(**overrides):
     return argparse.Namespace(**values)
 
 
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("token='alpha beta'", "token='***'"),
+        (
+            '"accessToken": "Bearer abc.def"',
+            '"accessToken": "***"',
+        ),
+        ("{'secret': 'abc,def'}", "{'secret': '***'}"),
+    ],
+)
+def test_redact_handles_quoted_auth_values_with_punctuation(text, expected):
+    assert tool._redact(text) == expected
+
+
 class FakeStore:
     def __init__(self, disks, smart_responses=None):
         self.disks = disks
@@ -422,6 +437,55 @@ async def test_run_completes_twofa_with_cli_code(monkeypatch, capsys):
     )
     assert captured.err == ""
     assert client.twofa_call == ("123456", True)
+    assert client.closed is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure_mode", ["raise", "return"])
+async def test_run_redacts_prompted_twofa_code_when_submission_fails(
+    monkeypatch,
+    capsys,
+    failure_mode,
+):
+    class FailedTwofaClient:
+        def __init__(self):
+            self.closed = False
+
+        async def connect(self, endpoint, *, use_ssl, skip_ssl_verify):
+            return None
+
+        async def login(self, user, password):
+            return {"result": "fail", "twofaRequired": True}
+
+        async def submit_twofa_code(self, code, *, trust_device):
+            message = f"server rejected code {code}"
+            if failure_mode == "raise":
+                raise RuntimeError(message)
+            return {"result": "fail", "errmsg": message}
+
+        async def close(self):
+            self.closed = True
+
+    client = FailedTwofaClient()
+    monkeypatch.setattr(tool, "FnosClient", lambda: client)
+    monkeypatch.setattr(
+        tool.login_with_twofa.__globals__["getpass"],
+        "getpass",
+        lambda prompt: "654321",
+    )
+
+    args = make_args(debug=True)
+
+    exit_code = await tool.run(args)
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert captured.out == "账号需要两步验证，安全邮箱: 未知\n"
+    assert "错误: 登录或两步验证阶段失败\n" in captured.err
+    assert "异常类型: RuntimeError\n" in captured.err
+    assert "server rejected code ***" in captured.err
+    assert "654321" not in captured.err
+    assert not hasattr(args, "_auth_sensitive_values")
     assert client.closed is True
 
 

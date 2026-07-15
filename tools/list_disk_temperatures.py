@@ -33,9 +33,20 @@ NVME_SMART_TEMPERATURE_SOURCE = (
 )
 MISSING = object()
 AUTH_VALUE_PATTERN = re.compile(
-    r"(?i)(?P<prefix>[\"']?(?:accessToken|longToken|token|secret|password)"
-    r"[\"']?\s*[:=]\s*)(?P<quote>[\"']?)"
-    r"(?P<value>[^\"',\s}\]]+)(?P=quote)"
+    r"""
+    (?P<prefix>
+        ["']?(?:accessToken|longToken|token|secret|password)["']?
+        \s*[:=]\s*
+    )
+    (?P<value>
+        "(?:\\.|[^"\\])*"
+        |
+        '(?:\\.|[^'\\])*'
+        |
+        [^,\s}\]]+
+    )
+    """,
+    re.IGNORECASE | re.VERBOSE,
 )
 
 
@@ -81,10 +92,12 @@ def _redact(text: str, sensitive_values: tuple[object, ...] = ()) -> str:
             redacted = redacted.replace(str(value), "***")
 
     def replace_auth_value(match: re.Match[str]) -> str:
-        return (
-            f"{match.group('prefix')}"
-            f"{match.group('quote')}***{match.group('quote')}"
-        )
+        value = match.group("value")
+        if value[:1] in {'"', "'"} and value[-1:] == value[:1]:
+            replacement = f"{value[0]}***{value[-1]}"
+        else:
+            replacement = "***"
+        return f"{match.group('prefix')}{replacement}"
 
     return AUTH_VALUE_PATTERN.sub(replace_auth_value, redacted)
 
@@ -110,33 +123,39 @@ def _print_failure(
     error: Exception,
     args: argparse.Namespace,
 ) -> None:
+    auth_sensitive_values = getattr(args, "_auth_sensitive_values", ())
     sensitive_values = (
         getattr(args, "password", None),
         getattr(args, "code", None),
+        *auth_sensitive_values,
     )
-    exception_type, detail = _exception_parts(error, sensitive_values)
-    print(f"错误: {stage}阶段失败", file=sys.stderr)
-    print(f"异常类型: {exception_type}", file=sys.stderr)
-    print(f"异常详情: {detail}", file=sys.stderr)
+    try:
+        exception_type, detail = _exception_parts(error, sensitive_values)
+        print(f"错误: {stage}阶段失败", file=sys.stderr)
+        print(f"异常类型: {exception_type}", file=sys.stderr)
+        print(f"异常详情: {detail}", file=sys.stderr)
 
-    if getattr(args, "debug", False):
-        formatted = "".join(
-            traceback.format_exception(
-                type(error),
-                error,
-                error.__traceback__,
+        if getattr(args, "debug", False):
+            formatted = "".join(
+                traceback.format_exception(
+                    type(error),
+                    error,
+                    error.__traceback__,
+                )
             )
-        )
-        print(
-            _redact(formatted, sensitive_values),
-            file=sys.stderr,
-            end="",
-        )
-    else:
-        print(
-            "提示: 使用 --debug 查看完整 traceback",
-            file=sys.stderr,
-        )
+            print(
+                _redact(formatted, sensitive_values),
+                file=sys.stderr,
+                end="",
+            )
+        else:
+            print(
+                "提示: 使用 --debug 查看完整 traceback",
+                file=sys.stderr,
+            )
+    finally:
+        if hasattr(args, "_auth_sensitive_values"):
+            del args._auth_sensitive_values
 
 
 def _try_temperature(

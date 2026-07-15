@@ -73,7 +73,10 @@ async def login_with_twofa(
     trust_device=False,
 ):
     """Login and complete optional two-factor verification."""
+    auth_args = None
+    prompted_code = False
     if hasattr(args_or_user, "user") and hasattr(args_or_user, "password"):
+        auth_args = args_or_user
         username = args_or_user.user
         password = args_or_user.password
         code = getattr(args_or_user, "code", code)
@@ -89,6 +92,13 @@ async def login_with_twofa(
             f"安全邮箱: {result.get('secureEmail', '未知')}"
         )
         code = code or getpass.getpass("请输入 6 位两步验证码: ")
+        prompted_code = auth_args is not None and not getattr(
+            auth_args,
+            "code",
+            None,
+        )
+        if prompted_code:
+            auth_args._auth_sensitive_values = (code,)
         result = await client.submit_twofa_code(
             code,
             trust_device=trust_device,
@@ -97,13 +107,15 @@ async def login_with_twofa(
         raise RuntimeError("该账号需要先绑定两步验证后才能继续登录")
 
     if result.get("result") != "succ":
-        raise RuntimeError(
-            result.get(
-                "msg",
-                result.get("errmsg", f"登录失败: {result}"),
-            )
+        message = (
+            result.get("msg")
+            or result.get("errmsg")
+            or "登录失败（服务端未提供错误详情）"
         )
+        raise RuntimeError(message)
 
+    if prompted_code:
+        del auth_args._auth_sensitive_values
     return result
 
 
