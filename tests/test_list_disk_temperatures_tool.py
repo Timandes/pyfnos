@@ -1,3 +1,4 @@
+import argparse
 import importlib.util
 import sys
 from pathlib import Path
@@ -211,3 +212,192 @@ async def test_invalid_disk_list_is_fatal():
             InvalidStore([]),
             FakeResourceMonitor({"data": {"disk": []}}),
         )
+
+
+def test_format_includes_source_skips_and_unknown_temperature():
+    output = tool.format_disk_temperatures(
+        [
+            tool.DiskTemperature(
+                name="sda",
+                temperature=38.0,
+                source=tool.MONITOR_TEMPERATURE_SOURCE,
+            ),
+            tool.DiskTemperature(
+                name="sdb",
+                skipped=[
+                    "ResourceMonitor.disk()（未找到该磁盘）",
+                    f"{tool.SMART_TEMPERATURE_SOURCE} = 0（值为 0）",
+                ],
+            ),
+        ]
+    )
+
+    assert output == (
+        "sda => 38°C\n"
+        f"  来源: {tool.MONITOR_TEMPERATURE_SOURCE}\n\n"
+        "sdb => 未知\n"
+        "  跳过: ResourceMonitor.disk()（未找到该磁盘）\n"
+        f"  跳过: {tool.SMART_TEMPERATURE_SOURCE} = 0（值为 0）"
+    )
+
+
+def test_parse_args_requires_credentials_and_endpoint():
+    args = tool.parse_args(
+        [
+            "--user",
+            "admin",
+            "--password",
+            "password",
+            "-e",
+            "nas.example.com:5666",
+        ]
+    )
+
+    assert args == argparse.Namespace(
+        user="admin",
+        password="password",
+        endpoint="nas.example.com:5666",
+    )
+
+    incomplete_argv = [
+        ["--password", "password", "-e", "nas.example.com:5666"],
+        ["--user", "admin", "-e", "nas.example.com:5666"],
+        ["--user", "admin", "--password", "password"],
+    ]
+    for argv in incomplete_argv:
+        with pytest.raises(SystemExit):
+            tool.parse_args(argv)
+
+
+@pytest.mark.asyncio
+async def test_run_partial_unknown_returns_zero_and_always_closes_client(
+    monkeypatch,
+    capsys,
+):
+    class FakeClient:
+        def __init__(self):
+            self.connected_endpoint = None
+            self.login_credentials = None
+            self.closed = False
+
+        async def connect(self, endpoint):
+            self.connected_endpoint = endpoint
+
+        async def login(self, user, password):
+            self.login_credentials = (user, password)
+            return {"result": "succ", "token": "must-not-be-printed"}
+
+        async def close(self):
+            self.closed = True
+
+    client = FakeClient()
+
+    class RuntimeStore(FakeStore):
+        def __init__(self, runtime_client):
+            assert runtime_client is client
+            super().__init__(["sda"], {"sda": {"smart": {}}})
+
+    class RuntimeMonitor(FakeResourceMonitor):
+        def __init__(self, runtime_client):
+            assert runtime_client is client
+            super().__init__(
+                {"data": {"disk": [{"name": "sda", "temp": 0}]}}
+            )
+
+    monkeypatch.setattr(tool, "FnosClient", lambda: client)
+    monkeypatch.setattr(tool, "Store", RuntimeStore)
+    monkeypatch.setattr(tool, "ResourceMonitor", RuntimeMonitor)
+    args = argparse.Namespace(
+        user="admin",
+        password="password",
+        endpoint="nas.example.com:5666",
+    )
+
+    exit_code = await tool.run(args)
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.out == (
+        "sda => 未知\n"
+        f"  跳过: {tool.MONITOR_TEMPERATURE_SOURCE} = 0（值为 0）\n"
+        f"  跳过: {tool.SMART_TEMPERATURE_SOURCE}（字段不存在）\n"
+        f"  跳过: {tool.NVME_SMART_TEMPERATURE_SOURCE}（字段不存在）\n"
+    )
+    assert captured.err == ""
+    assert "must-not-be-printed" not in captured.out
+    assert client.connected_endpoint == args.endpoint
+    assert client.login_credentials == (args.user, args.password)
+    assert client.closed is True
+
+
+@pytest.mark.asyncio
+async def test_run_login_failure_is_fatal_and_does_not_leak_response(
+    monkeypatch,
+    capsys,
+):
+    class FailedLoginClient:
+        def __init__(self):
+            self.closed = False
+
+        async def connect(self, endpoint):
+            return None
+
+        async def login(self, user, password):
+            return {
+                "result": "fail",
+                "msg": "bad password",
+                "secret": "must-not-be-printed",
+            }
+
+        async def close(self):
+            self.closed = True
+
+    client = FailedLoginClient()
+    monkeypatch.setattr(tool, "FnosClient", lambda: client)
+    args = argparse.Namespace(
+        user="admin",
+        password="password",
+        endpoint="nas.example.com:5666",
+    )
+
+    exit_code = await tool.run(args)
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert captured.out == ""
+    assert captured.err == "错误: 登录失败\n"
+    assert "must-not-be-printed" not in captured.err
+    assert client.closed is True
+
+
+@pytest.mark.asyncio
+async def test_run_unexpected_failure_reports_only_exception_type(
+    monkeypatch,
+    capsys,
+):
+    class FailingClient:
+        def __init__(self):
+            self.closed = False
+
+        async def connect(self, endpoint):
+            raise RuntimeError("secret diagnostic details")
+
+        async def close(self):
+            self.closed = True
+
+    client = FailingClient()
+    monkeypatch.setattr(tool, "FnosClient", lambda: client)
+    args = argparse.Namespace(
+        user="admin",
+        password="password",
+        endpoint="nas.example.com:5666",
+    )
+
+    exit_code = await tool.run(args)
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert captured.out == ""
+    assert captured.err == "错误: 磁盘温度诊断失败（RuntimeError）\n"
+    assert "secret diagnostic details" not in captured.err
+    assert client.closed is True

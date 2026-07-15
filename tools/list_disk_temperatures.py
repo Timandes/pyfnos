@@ -12,9 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
+import asyncio
 from dataclasses import dataclass, field
 import math
+import sys
 from typing import Any
+
+from fnos import FnosClient, ResourceMonitor, Store
 
 
 MONITOR_TEMPERATURE_SOURCE = "ResourceMonitor.disk().data.disk[].temp"
@@ -175,3 +180,78 @@ async def collect_disk_temperatures(
         results.append(result)
 
     return results
+
+
+def _format_temperature(value: int | float) -> str:
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
+def format_disk_temperatures(results: list[DiskTemperature]) -> str:
+    blocks = []
+    for result in results:
+        if result.temperature is None:
+            heading = f"{result.name} => 未知"
+        else:
+            heading = (
+                f"{result.name} => "
+                f"{_format_temperature(result.temperature)}°C"
+            )
+
+        lines = [heading]
+        if result.source is not None:
+            lines.append(f"  来源: {result.source}")
+        lines.extend(f"  跳过: {message}" for message in result.skipped)
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks)
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="fnOS 磁盘温度诊断工具")
+    parser.add_argument("--user", required=True, help="用户名")
+    parser.add_argument("--password", required=True, help="密码")
+    parser.add_argument(
+        "-e",
+        "--endpoint",
+        required=True,
+        help="fnOS 服务器地址，例如 nas.example.com:5666",
+    )
+    return parser.parse_args(argv)
+
+
+async def run(args: argparse.Namespace) -> int:
+    client = FnosClient()
+    try:
+        await client.connect(args.endpoint)
+        login_result = await client.login(args.user, args.password)
+        if (
+            not isinstance(login_result, dict)
+            or login_result.get("result") != "succ"
+        ):
+            print("错误: 登录失败", file=sys.stderr)
+            return 1
+
+        results = await collect_disk_temperatures(
+            Store(client),
+            ResourceMonitor(client),
+        )
+        print(format_disk_temperatures(results))
+        return 0
+    except Exception as error:
+        print(
+            "错误: 磁盘温度诊断失败"
+            f"（{_exception_summary(error)}）",
+            file=sys.stderr,
+        )
+        return 1
+    finally:
+        await client.close()
+
+
+def main(argv: list[str] | None = None) -> int:
+    return asyncio.run(run(parse_args(argv)))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
