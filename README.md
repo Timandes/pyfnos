@@ -315,6 +315,7 @@ uv run examples/system_restore.py --user myuser --password mypassword -e my-serv
 | 文件名 | 功能说明 |
 | ------ | -------- |
 | `not_connected.py` | 演示如何捕获和处理NotConnectedError异常来判断是否需要重连 |
+| `https_required_error.py` | 演示如何识别 fnOS 强制 HTTPS 重定向并提示调用方改用 WSS |
 | `reconnect.py` | 演示如何使用FnosClient的自动重连功能 |
 | `resource_monitor.py` | 演示 CPU、GPU、内存、磁盘、网络、NPU、进程、服务进程和风扇查询 |
 | `resource_monitor_general.py` | 演示如何获取通用资源监控信息（支持指定监控项列表） |
@@ -353,4 +354,23 @@ uv run examples/user.py --user myuser --password mypassword -e my-server.com:566
 
 # 禁用证书验证跳过（验证服务器证书）
 uv run examples/user.py --user myuser --password mypassword -e wss://my-server.com:5667 --skip-ssl-verify false
+```
+
+当 fnOS 开启“强制 HTTPS”而调用方仍连接 HTTP/WS 端点时，SDK 会抛出 `HTTPSRequiredError`，但不会自动重试：
+
+```python
+from fnos import HTTPSRequiredError
+
+try:
+    await client.connect("my-server.com:5666")
+except HTTPSRequiredError as error:
+    print(f"请改用 WSS，服务端重定向到：{error.redirect_uri}")
+```
+
+调用方可以根据自身配置改用 `wss://` endpoint，或再次调用 `connect(..., use_ssl=True)`。
+
+不同于上述认证示例，本诊断脚本只接受 endpoint；它只检测并展示异常，不会自动重试：
+
+```bash
+uv run python examples/https_required_error.py -e nas-10.timandes.net:5666
 ```

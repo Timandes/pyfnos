@@ -8,6 +8,8 @@
 ## [Unreleased]
 
 ### Added
+- 新增 `HTTPSRequiredError`，用于识别 fnOS 强制 HTTPS 导致的 WS→HTTPS 重定向并提示调用方改用 WSS
+- 新增 `examples/https_required_error.py` 强制 HTTPS 诊断示例
 - 新增 71 个基于 fnos-mock-server 请求/响应 fixtures 验证的只读查询接口
 - 新增 `BackupManager`、`DownloadCenter`、`IPBlocker`、`LicenseManager`、`MountManager`、`NetworkServer`、`Security`、`SystemRestore` 和 `LiveUpdate`
 - 扩展 Docker、网络、资源监控、文件、存储、用户、共享、SAC 和系统信息查询能力
