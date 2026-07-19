@@ -207,3 +207,124 @@ class DockerManager:
         return await self.client.request_payload_with_response(
             "appcgi.dockermgr.registryHubRepoList", payload, timeout
         )
+
+    # ── Container lifecycle ──────────────────────────────────────────
+
+    async def container_inspect(
+        self, container_id: str, timeout: float = 10.0
+    ) -> dict:
+        """查看容器详情。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.dockermgr.containerInspect",
+            {"containerId": container_id},
+            timeout,
+        )
+
+    async def container_top(
+        self, container_id: str, timeout: float = 10.0
+    ) -> dict:
+        """查看容器进程。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.dockermgr.containerTop",
+            {"containerId": container_id},
+            timeout,
+        )
+
+    async def container_stats(
+        self, container_id: str, timeout: float = 10.0
+    ) -> dict:
+        """查看单容器资源统计（CPU/内存/网络）。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.dockermgr.containerStats",
+            {"containerId": container_id},
+            timeout,
+        )
+
+    async def container_start(self, container_id: str, timeout: float = 30.0) -> dict:
+        """启动容器。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.dockermgr.containerStart",
+            {"containerId": container_id},
+            timeout,
+        )
+
+    async def container_stop(self, container_id: str, timeout: float = 30.0) -> dict:
+        """停止容器。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.dockermgr.containerStop",
+            {"containerId": container_id},
+            timeout,
+        )
+
+    async def container_restart(self, container_id: str, timeout: float = 30.0) -> dict:
+        """重启容器。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.dockermgr.containerRestart",
+            {"containerId": container_id},
+            timeout,
+        )
+
+    async def container_kill(self, container_id: str, timeout: float = 30.0) -> dict:
+        """强制终止容器。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.dockermgr.containerKill",
+            {"containerId": container_id},
+            timeout,
+        )
+
+    async def container_remove(
+        self, container_id: str, force: bool = False, timeout: float = 30.0
+    ) -> dict:
+        """删除容器。"""
+        payload: dict[str, object] = {"containerId": container_id}
+        if force:
+            payload["force"] = True
+        return await self.client.request_payload_with_response(
+            "appcgi.dockermgr.containerRemove", payload, timeout
+        )
+
+    # ── Image management ─────────────────────────────────────────────
+
+    async def image_pull(
+        self,
+        image_ref: str,
+        timeout: float = 120.0,
+    ) -> dict:
+        """拉取镜像。
+
+        Args:
+            image_ref: 镜像引用，如 'nginx:latest' 或 'registry:5000/ns/app:1.0'
+        """
+        if ":" in image_ref:
+            last_colon = image_ref.rfind(":")
+            from_image = image_ref[:last_colon]
+            tag = image_ref[last_colon + 1:]
+        else:
+            from_image = image_ref
+            tag = "latest"
+        return await self.client.request_payload_with_response(
+            "appcgi.dockermgr.imagePull",
+            {"fromImage": from_image, "tag": tag},
+            timeout,
+        )
+
+    async def image_remove(
+        self, image_id: str, force: bool = False, timeout: float = 30.0
+    ) -> dict:
+        """删除镜像。"""
+        payload: dict[str, object] = {"imageId": image_id}
+        if force:
+            payload["force"] = True
+        return await self.client.request_payload_with_response(
+            "appcgi.dockermgr.imageRemove", payload, timeout
+        )
+
+    async def image_inspect(
+        self, image_id: str, timeout: float = 10.0
+    ) -> dict:
+        """查看镜像详情。"""
+        return await self.client.request_payload_with_response(
+            "appcgi.dockermgr.imageInspect",
+            {"imageId": image_id},
+            timeout,
+        )

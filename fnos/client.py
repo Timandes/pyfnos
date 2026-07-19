@@ -23,7 +23,7 @@ import hashlib
 import hmac
 import logging
 import ssl
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlunparse
 from websockets.exceptions import InvalidStatus, InvalidURI
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_v1_5
@@ -125,7 +125,21 @@ class FnosClient:
         actual_use_ssl: bool,
     ) -> HTTPSRequiredError | None:
         """将匹配 fnOS 强制 HTTPS 的重定向异常转换为 SDK 异常。"""
-        if actual_use_ssl or urlparse(error.uri).scheme.lower() != "https":
+        if actual_use_ssl:
+            # WSS connection was redirected to HTTPS — the server returned
+            # a 302 to https:// but websockets followed it and failed to
+            # parse https:// as a WS URI.  Return the redirect target so
+            # the caller can retry with wss://.
+            redirect_uri = error.uri
+            if urlparse(redirect_uri).scheme.lower() == "https":
+                return HTTPSRequiredError(
+                    requested_uri=requested_uri,
+                    redirect_uri=redirect_uri,
+                    status_code=302,
+                )
+            return None
+
+        if urlparse(error.uri).scheme.lower() != "https":
             return None
 
         redirect_error = error.__cause__ or error.__context__
@@ -354,8 +368,16 @@ class FnosClient:
                     actual_use_ssl=actual_use_ssl,
                 )
                 if https_required_error is not None:
-                    raise https_required_error from error
-                raise
+                    # fnOS server redirected to HTTPS — retry with wss://
+                    redirect_uri = https_required_error.redirect_uri
+                    parts = urlparse(redirect_uri)
+                    new_uri = urlunparse(("wss",) + parts[1:])
+                    logger.debug(f"fnOS redirect detected, retrying with: {new_uri}")
+                    self.ws = await websockets.connect(
+                        new_uri, ssl=ssl_context
+                    )
+                else:
+                    raise
             logger.debug("websockets.connect returned")
 
             logger.debug("Creating async message handler...")
